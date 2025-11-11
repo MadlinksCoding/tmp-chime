@@ -1,0 +1,2056 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chime Meeting</title>
+
+  <!-- Relative paths for local files -->
+  <!-- Debug Logger (must load first to hijack alerts) -->
+  <script src="./debugLogger.js"></script>
+  <!-- SocketHandler must be from external source (keep absolute) -->
+  <script src="https://playground.codelinden.com/webSocket/SocketHandler.js"></script>
+  <!-- Local files - relative paths -->
+  <script src="./callFlowHandler.js"></script>
+  <script src="./chimeHandler.js"></script>
+  <script src="./camMicPermissionsHandler.js"></script>
+    <script src="./chatHandler.js"></script>
+    <script src="./reactionsHandler.js"></script>
+    <script src="./giftAnimationHandler.js"></script>
+    <script src="./coreChime.js"></script>
+
+  <!-- Chime SDK - Original working version with blur/background support -->
+  <script src="https://fs.codelinden.com/wp-content/plugins/fansocial/assets/chime-final-test/chime.min.js"></script>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- NEW COMPREHENSIVE VUE TEMPLATES - STYLES AND FONTS -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./style.css">
+  <script src="./script.js"></script>
+
+  <!-- Final Template Flow is driven by the ORIGINAL Vue instance (state/substate). -->
+  <!-- Load template/component bundles for reuse, but do NOT mount a second Vue app. -->
+  <script src="./vueComponents.js" defer></script>
+  <script src="./vueComponentTemplates.js" defer></script>
+  <script src="./vueComponentsMerch.js" defer></script>
+  <script src="./vueComponentsSettings.js" defer></script>
+  <script src="./vueComponentsCall.js" defer></script>
+  <script src="./vueComponentsVideoCall.js" defer></script>
+  <script src="./vueComponentsWaitingConnected.js" defer></script>
+  <script src="./vueComponentCamMicPermissions.js" defer></script>
+  <script src="./vueComponentChatSidebar.js" defer></script>
+
+  <!-- Prosenjit Added those components -->
+  <script src="components/vueComponentCallWaiting.js" defer></script>
+  <script src="components/vueComponentMainCallVideo.js" defer></script> 
+  <script src="components/vueComponentRemoteParticipant.js" defer></script>
+  <script src="components/vueComponentBottomLeftInfo.js" defer></script>
+  <script src="components/vueComponentBottomCenterControls.js" defer></script>
+  <script src="components/vueComponentBottomRightControls.js" defer></script>
+  <script src="components/vueComponentBottomControls.js" defer></script>
+  <script src="components/vueComponentMobileHeader.js" defer></script>
+
+  <!-- Harwinder imported components -->
+  <script src="components/prejoin/vueComponentsConnecting.js" defer></script>
+  <script src="components/prejoin/vueComponentsBackButton.js" defer></script>
+  <script src="components/prejoin/vueComponentsCameraMicControls.js" defer></script>
+  <script src="components/prejoin/vueComponentsJoinCallButton.js" defer></script>
+  <script src="components/prejoin/vueComponentsAudioVideo.js" defer></script>
+  <script src="components/prejoin/vueComponentsBackgroundsEffects.js" defer></script>
+  <script src="components/prejoin/vueComponentsSettingsPanel.js" defer></script>
+  <script src="components/prejoin/vueComponentsMobileJoinButton.js" defer></script>
+  <script src="components/vueComponentTemplateChimeCalleeConnected.js" defer></script>
+
+  <!-- Bottom Panel Buttons -->
+  <script src="components/controlPanelbuttons/vueComponenChatButton.js" defer></script>
+  <script src="components/controlPanelbuttons/vueComponenReactButton.js" defer></script>
+  <script src="components/controlPanelbuttons/vueComponenSettingsButton.js" defer></script>
+  <script src="components/controlPanelbuttons/vueComponentTipButtons.js" defer></script>
+  <script src="components/controlPanelbuttons/vueComponenSettingsGear.js" defer></script>
+  <script src="components/controlPanelbuttons/vueComponenScreenSizeButton.js" defer></script>
+  <script src="components/controlPanelbuttons/vueComponentCameraButton.js" defer></script>
+  <script src="components/controlPanelbuttons/vueComponentMicButton.js" defer></script>
+
+
+  <style>
+
+    * {
+        scrollbar-width: none;
+        -ms-overflow-style: none;  
+      }
+
+      *::-webkit-scrollbar {
+        display: none;
+      }
+
+
+    video {
+      width: 100%;
+      max-width: 520px;
+      background: #000;
+      object-fit: cover;
+    }
+
+    video {
+      background-color: red !important;
+    }
+
+    /* Reaction animations */
+    @keyframes reactionFadeInOut {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.6);
+      }
+      10% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.2);
+      }
+      20% {
+        transform: translate(-50%, -50%) scale(1);
+      }
+      80% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -60%) scale(0.8);
+      }
+    }
+
+    .reaction-float {
+      animation: reactionFadeInOut 2s ease-out forwards;
+    }
+
+    /* Gift animations */
+    @keyframes giftFall {
+      0% {
+        top: -100px;
+        opacity: 0;
+      }
+      10% {
+        opacity: 1;
+      }
+      90% {
+        opacity: 1;
+      }
+      100% {
+        top: 100vh;
+        opacity: 0;
+      }
+    }
+
+    @keyframes giftRotate {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ===== Vue 3 bridge (passive listener) ===== -->
+  <script src="https://unpkg.com/vue@3.4.31/dist/vue.global.prod.js"></script>
+
+  <!-- Original Debug/Control Interface and Final Template Flow (same Vue instance) -->
+  <div id="app">
+
+    
+        <!-- ===============================
+     CHIME TILE LAYOUT — INTEGRATED
+     =============================== -->
+     <div id="chime-tile-layout" class="my-6 p-4 border-t border-gray-300">
+
+      <!-- Layout buttons -->
+      <div class="max-w-6xl mx-auto p-3 flex flex-wrap gap-2">
+        <button data-layout="host_attendee"         class="px-3 py-1.5 rounded border bg-white hover:bg-slate-50">1 host / 1 attendee</button>
+        <button data-layout="host_attendee_mainAtt" class="px-3 py-1.5 rounded border bg-white hover:bg-slate-50">1 host / 1 attendee (attendee main)</button>
+        <button data-layout="host_3collabs"         class="px-3 py-1.5 rounded border bg-white hover:bg-slate-50">1 host / 3 collabs</button>
+        <button data-layout="host_1collab"          class="px-3 py-1.5 rounded border bg-white hover:bg-slate-50">1 host / 1 collab</button>
+        <button data-layout="host_2collabs"         class="px-3 py-1.5 rounded border bg-white hover:bg-slate-50">1 host / 2 collabs</button>
+      </div>
+
+      <!-- Stage -->
+      <div id="video-containers"
+          class="relative overflow-hidden max-w-6xl mx-auto h-[78vh] p-4 bg-white border rounded-xl shadow
+                  grid grid-cols-12 grid-rows-2 gap-3"
+          data-layout="host_attendee">
+
+        <div id="host-container" data-name="host" data-container-type="host" data-attendee-id="" data-role="host" class="tile flex items-center justify-center rounded-xl border border-slate-300 bg-slate-900 text-white video-card">
+          <!-- Video element will be added by UiMapTileToCard -->
+        </div>
+
+        <div id="collab1-container" data-name="collab1" data-container-type="collaborator" data-collab-index="1" data-attendee-id="" data-role="collaborator" class="tile flex items-center justify-center rounded-xl border border-slate-300 bg-slate-900 text-white video-card hidden">
+          <!-- Video element will be added by UiMapTileToCard -->
+        </div>
+
+        <div id="collab2-container" data-name="collab2" data-container-type="collaborator" data-collab-index="2" data-attendee-id="" data-role="collaborator" class="tile flex items-center justify-center rounded-xl border border-slate-300 bg-slate-900 text-white video-card hidden">
+          <!-- Video element will be added by UiMapTileToCard -->
+        </div>
+
+        <div id="collab3-container" data-name="collab3" data-container-type="collaborator" data-collab-index="3" data-attendee-id="" data-role="collaborator" class="tile flex items-center justify-center rounded-xl border border-slate-300 bg-slate-900 text-white video-card hidden">
+          <!-- Video element will be added by UiMapTileToCard -->
+        </div>
+
+        <div id="attendee-container" data-name="attendee" data-container-type="attendee" data-attendee-id="" data-role="attendee" class="tile flex items-center justify-center rounded-xl border border-slate-300 bg-slate-900 text-white video-card">
+          <!-- Video element will be added by UiMapTileToCard -->
+        </div>
+      </div>
+    </div>
+      
+    <!-- =============================== -->
+
+      <!-- Chat Sidebar for Testing -->
+      <chat-sidebar></chat-sidebar>
+
+      <!-- Center reaction layer for emoji reactions -->
+      <div id="reaction-layer" style="position: fixed; inset: 0; pointer-events: none; z-index: 3000;"></div>
+
+
+    <div class="relative w-full h-screen" data-chime-templates>
+      <div data-video-container class="w-full h-full absolute ">
+        <div v-if="state==='caller:connectedJoined'" data-main-video class="w-full h-full">
+          <video class="w-full h-full rounded-2 fit-cover" autoplay playsinline></video>
+        </div>
+        <div v-if="state==='caller:connectedJoined'" data-small-video>
+           <!-- Remote Participant Video (bottom Right) -->
+           <remote-participant></remote-participant>
+        </div>
+      </div>
+      <div data-template-container class="w-full h-full absolute ">
+        <!-- 📞 CALLER STATES -->
+        <div v-if="state==='caller:startCall'">
+          [Caller] Choose an option to start your call — audio or video.
+        </div>
+
+        <div v-if="state==='caller:callWaiting'">
+          [Caller] Calling… waiting for the other person to answer. Displays user info, call type, and loading
+          indicator.
+        </div>
+
+        <div v-if="state==='caller:callAccepted'">
+          [Caller] The callee has accepted your call! Preparing your audio or video connection.
+        </div>
+
+        <div v-if="state==='caller:waitingForCamMicPermissions'">
+          [Caller] Waiting for camera or microphone permissions… please allow access to continue.
+        </div>
+
+        <div v-if="state==='caller:connectedJoined'">
+          [Caller] Connected and joined - waiting for Callee to join!
+            <bottom-controls user-initials="UN" :toggle-camera="toggleCamera" :toggle-microphone="toggleMicrophone"
+              :chime-call-settings="ChimeCallSettings"></bottom-controls>
+        </div>
+
+        <div v-if="state==='caller:rejected'">
+          [Caller] ❌ You canceled the call.
+        </div>
+
+        <div v-if="state==='caller:declined'">
+          [Caller] 🚫 The other person declined your call.
+        </div>
+
+        <div v-if="state==='caller:terminated'">
+          [Caller] 🔌 The call has ended.
+        </div>
+
+
+        <!-- 🎥 CALLEE STATES -->
+        <div v-if="state==='callee:incomingAudioCall'">
+          [Callee] 📞 Incoming audio call — displaying caller’s name, avatar, and call controls.
+        </div>
+
+        <div v-if="state==='callee:incomingVideoCall'">
+          [Callee] 🎥 Incoming video call — showing caller’s details with options to accept or decline.
+        </div>
+
+        <div v-if="state==='callee:callAccepted'">
+          [Callee] ✅ You accepted the call.
+        </div>
+
+        <div v-if="state==='callee:waitingForCamMicPermissions'">
+          [Callee] Waiting for camera or microphone permissions… please allow access to continue.
+        </div>
+
+
+        <div v-if="state==='callee:connected'">
+          <template-chime-callee-connected :substate="substate" :toggle-camera="toggleCamera"
+            :toggle-microphone="toggleMicrophone"
+            :chime-call-settings="ChimeCallSettings"></template-chime-callee-connected>
+          [Callee] 🔗 Connecting to the call…
+
+          zzzzz
+        </div>
+
+        <div v-if="state==='callee:joined'">
+          [Callee] Joined with the callee.
+        </div>
+
+        <div v-if="state==='callee:rejected'">
+          [Callee] ❌ You rejected the call.
+        </div>
+
+        <div v-if="state==='callee:declined'">
+          [Callee] 🚫 The caller declined your invitation.
+        </div>
+
+        <div v-if="state==='callee:terminated'">
+          [Callee] 🔌 The call has ended.
+        </div>
+
+
+        <!-- 🤝 SHARED STATES (Both) -->
+        <div v-if="state==='shared:networkIssue'">
+          [Both] ⚠️ Network issue detected. Trying to reconnect…
+        </div>
+
+        <div v-if="state==='shared:reconnecting'">
+          [Both] ♻️ Reconnecting to the call… please wait.
+        </div>
+
+        <div v-if="state==='shared:disconnected'">
+          [Both] ⚡ Disconnected from the call. Attempting to restore connection.
+        </div>
+
+        <div v-if="state==='shared:inCall'">
+          [Both] 🎉 Call is active! Both participants are connected.
+
+          <div ref="callRoot" data-state="in-call" data-call-waiting="false"
+            class="w-full h-screen relative bg-cover bg-center bg-no-repeat bg-black/50 backdrop-blur-sm background-image">
+            <div class="w-full h-full flex">
+              <div
+                class="_w-full flex-1 h-full inset-0 bg-black/50 backdrop-blur-lg lg:p-0 flex items-center gap-2 mx-auto">
+                <section class="flex-1 flex flex-col gap-2 h-full relative">
+
+                  <!-- Main Video Area -->
+                  <div class="flex-1 relative rounded-card-xs bg-cover bg-center bg-black backdrop-blur-sm">
+                    <!-- Call Waiting --->
+                    <call-waiting v-if="isWaiting" user-initials="UN" :waiting-handle="'@' + userName"></call-waiting>
+                    <!-- /Call Waiting --->
+
+                    <!-- Main call Video -->
+                    <main-call-video v-else></main-call-video>
+                    <!-- Main call Video -->
+                  </div>
+
+                  <!-- Remote Participant Video (bottom Right) -->
+                  <remote-participant></remote-participant>
+
+                  <!-- Mobile header -->
+                  <mobile-header meeting-time="November 5, 2025" user-name="jennyben" mode-text="Meeting with"
+                    status-text="in 5 min"></mobile-header>
+
+                  <!-- Bottom Controls -->
+                  <bottom-controls user-initials="UN"></bottom-controls>
+                </section>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    
+
+
+    <table>
+      <tr>
+        <td style="padding: 5px; border: 1px solid black">
+          <strong>Settings</strong>
+        </td>
+        <td style="padding: 5px; border: 1px solid black">
+          <div><strong @click="toggleCamera">Camera:</strong> {{ ChimeCallSettings.callCamStatus ? 'On' : 'Off' }}</div>
+          <div><strong>Microphone:</strong> {{ ChimeCallSettings.callMicStatus ? 'On' : 'Off' }}</div>
+          <div><strong>Callee Image URL:</strong> {{ ChimeCallSettings.userAvatarUrl || 'No image set' }}</div>
+        </td>
+      </tr>
+    </table>
+  </div><!-- .app --><span>test</span>
+
+
+
+
+
+
+
+
+
+  <div id="call-controls">
+    <h2 style="font-size: 2em">call Controls</h2>
+    <table style="width: 100%; border-collapse: collapse" border="1">
+      <tbody>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Initiate Call</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <button id="btnStartInstantCall" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Start Instant Call
+            </button>
+            <button id="btnStartAudioCall" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              🎤 Start Audio Instant Call
+            </button>
+            <button id="btnStartVideoCall" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              📹 Start Video Instant Call
+            </button>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Respond to Call</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <button id="btnAccept" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Accept
+            </button>
+            <select id="rejectReason">
+              <option value="busy">Busy</option>
+              <option value="not_available">Not available</option>
+              <option value="in_another_call">In another call</option>
+              <option value="spam">Spam</option>
+            </select>
+            <button id="btnReject" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Reject
+            </button>
+            <button id="btnCancelCall" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Cancel
+            </button>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Media Controls</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <a id="link-video-on" href="#" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Video On</a>
+            <a id="link-video-off" href="#" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Video Off</a>
+            <a id="link-audio-on" href="#" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Audio On</a>
+            <a id="link-audio-off" href="#" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Audio Off</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Video Effects</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <label>Blur:</label>
+            <select id="blurLevelSelect">
+              <option value="off">Off</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+            <label>Background:</label>
+            <select id="backgroundSelect">
+              <option value="">None</option>
+              <option value="https://fs.codelinden.com/wp-content/uploads/2024/bg1.jpg">
+                Beach
+              </option>
+              <option value="https://fs.codelinden.com/wp-content/uploads/2024/bg2.jpg">
+                Office
+              </option>
+              <option value="https://fs.codelinden.com/wp-content/uploads/2024/bg3.jpg">
+                Nature
+              </option>
+              <option value="https://fs.codelinden.com/wp-content/uploads/2024/bg4.jpg">
+                City
+              </option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Data Actions</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <a id="link-react" href="#" data-flag="reaction" data-payload='{"emoji":"❤️","intensity":1,"target":"all"}'
+              style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">React</a>
+            <a id="link-send-gift" href="#" data-flag="gift" data-payload='{"giftId":"rose","qty":1,"target":"all"}'
+              style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Send Gift</a>
+            <a id="link-send-chat" href="#" data-flag="chat" data-payload='{"text":"Hi there!","target":"all"}' style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Send Chat</a>
+            <a id="link-send-chat-promo" href="#" data-flag="chatPromo"
+              data-payload='{"promoId":"WELCOME10","target":"all"}' style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Send Promo</a>
+            <a id="link-tip" href="#" data-flag="tip" data-payload='{"amount":10,"currency":"TOK","target":"all"}'
+              style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Tip</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+
+  <div id="debug-container">
+    <h2 style="font-size: 2em">debug Controls</h2>
+    <table style="width: 100%; border-collapse: collapse" border="1">
+      <tbody>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Call Type</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <select id="callType">
+              <option value="INSTANT_ONE_ON_ONE">Instant one on one</option>
+              <option value="SCHEDULED_ONE_ON_ONE">
+                Schedule one on one
+              </option>
+              <option value="GROUP_ONE_ON_ONE">Group one on one</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Role</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <select id="role">
+              <option value="host">Host</option>
+              <option value="collaborator">Collaborator</option>
+              <option value="attendee">Attendee</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>User IDs</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <input id="currentUserId" placeholder="Your ID" autocomplete="off" />
+            <input id="targetUserId" placeholder="Target User ID" autocomplete="off" />
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Socket</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <button id="btnLoginRegister" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Register Logged In (Connect Socket)
+            </button>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Chime Call State</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <div id="ui-status" style="display: inline-block">
+              <strong>Status:</strong> Idle…
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>UI State</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <div style="margin-top: 8px">
+              current → state:
+              <b>{{ state || '(none)' }}</b> /
+              substate: <b>{{ substate || '(none)' }}</b>
+            </div>
+
+            <!-- 🔹 History log -->
+            <div id="ui-history"
+              style="margin-top: 10px; max-height: 180px; overflow-y: auto; font-family: monospace; font-size: 13px;">
+            </div>
+            <div style="margin-top: 8px">
+              current → state:
+              <b>{{ state || '(none)' }}</b> /
+              substate: <b>{{ substate || '(none)' }}</b>
+            </div>
+
+            <!-- 🔹 History log -->
+            <div id="ui-history"
+              style="margin-top: 10px; max-height: 180px; overflow-y: auto; font-family: monospace; font-size: 13px;">
+            </div>
+
+            <script>
+              document.addEventListener("chime-ui::state", (e) => {
+                const d = e.detail;
+                const ts = new Date(d.ts).toLocaleTimeString();
+                console.log("[UI EVENT] chime-ui::state received →", d);
+
+                // update live state display if using Vue/reactivity
+                if (window.vueApp && window.vueApp.state !== undefined) {
+                  window.vueApp.state = d.state;
+                  window.vueApp.substate = d.substate;
+                }
+
+                // append history line
+                const history = document.getElementById("ui-history");
+                if (history) {
+                  const p = document.createElement("p");
+                  p.textContent = `[${ts}] ${d.state} / ${d.substate || 'none'} (caller: ${d.callerId || '-'}, callee: ${d.calleeId || '-'})`;
+                  history.appendChild(p);
+                  // keep scroll pinned to bottom
+                  history.scrollTop = history.scrollHeight;
+                }
+              });
+            </script>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Vue State Shifter</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <label>state:</label>
+            <select id="stateSelect" onchange="CallHandler.dipatchUI(this.value)">
+              <option value="">(none)</option>
+
+              <!-- Caller -->
+              <option value="caller:startCall">caller:startCall</option>
+              <option value="caller:callWaiting">caller:callWaiting</option>
+              <option value="caller:callAccepted">caller:callAccepted</option>
+              <option value="caller:waitingForCamMicPermissions">caller:waitingForCamMicPermissions</option>
+              <option value="caller:connectedJoined">caller:connectedJoined</option>
+              <option value="caller:rejected">caller:rejected</option>
+              <option value="caller:declined">caller:declined</option>
+              <option value="caller:terminated">caller:terminated</option>
+
+              <!-- Callee -->
+              <option value="callee:incomingAudioCall">callee:incomingAudioCall</option>
+              <option value="callee:incomingVideoCall">callee:incomingVideoCall</option>
+              <option value="callee:callAccepted">callee:callAccepted</option>
+              <option value="callee:waitingForCamMicPermissions">callee:waitingForCamMicPermissions</option>
+              <option value="callee:connected">callee:connected</option>
+              <option value="callee:joined">callee:joined</option>
+              <option value="callee:rejected">callee:rejected</option>
+              <option value="callee:declined">callee:declined</option>
+              <option value="callee:terminated">callee:terminated</option>
+
+              <!-- Shared -->
+              <option value="shared:networkIssue">shared:networkIssue</option>
+              <option value="shared:reconnecting">shared:reconnecting</option>
+              <option value="shared:disconnected">shared:disconnected</option>
+              <option value="shared:inCall">shared:inCall</option>
+            </select>
+
+            <label>substate:</label>
+            <select title="Substates for testing to integrate later">
+              <option value="">(none)</option>
+              <option value="test1">test1</option>
+              <option value="test2">test2</option>
+              <option value="test3">test3</option>
+              <option value="test3">test4</option>
+            </select>
+
+            <div><span>State history</span><span id="history"></span></div>
+
+
+
+          </td>
+        </tr>
+        
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Camera Status</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong data-cam-mic-element="status-camera">prompt</strong>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Microphone Status</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong data-cam-mic-element="status-microphone">prompt</strong>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Camera Permission Needed</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <div data-cam-mic-element="need-camera" hidden>
+              📷 Camera permission needed
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Microphone Permission Needed</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <div data-cam-mic-element="need-microphone" hidden>
+              🎤 Microphone permission needed
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Cam/Mic Actions</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <button data-cam-mic-action="check-permissions" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Check Permissions
+            </button>
+            <button data-cam-mic-action="request-camera-microphone" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Request Both
+            </button>
+            <button data-cam-mic-action="stop-streams" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Stop Streams
+            </button>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Meeting Actions</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <a id="link-join-meeting" href="#" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Join Meeting</a>
+            <a id="link-start" href="#" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Start</a>
+            <a id="link-end" href="#" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">End</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>ChimeDebugLog</strong>
+          </td>
+          <td style="
+                  padding: 5px;
+                  border: 1px solid black;
+                  background: #111;
+                  color: #0f0;
+                  font-family: monospace;
+                  font-size: 12px;
+                ">
+            <div id="debug-log-output" style="height: 200px; overflow-y: scroll"></div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="host-controls">
+    <h2 style="font-size: 2em">Host Controls</h2>
+    <table style="width: 100%; border-collapse: collapse" border="1">
+      <tbody>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Bulk Actions</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <button id="btn-mute-all" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Mute All
+            </button>
+            <button id="btn-unmute-all" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Unmute All
+            </button>
+            <button id="btn-end-for-all" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              End Call for All
+            </button>
+            <button id="btn-set-max-attendees" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Set Max Attendees
+            </button>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Assign Host</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <select id="select-host-candidate">
+              <option value="">Select participant…</option>
+            </select>
+            <button id="btn-assign-host" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Assign
+            </button>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Manage Collaborators</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <input id="input-collabs" placeholder="uid1, uid2, uid3, uid4" />
+            <button id="btn-save-collabs" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Save
+            </button>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Meeting Info</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <span>Meeting: <code id="label-meeting-id">-</code></span> •
+            <span>Type: <code id="label-meeting-type">-</code></span> •
+            <span>Participants:
+              <code id="label-participant-count">0</code>/<code id="label-max-participants">-</code></span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+
+
+
+
+
+  <script>
+    (function bootstrapVue() {
+      function startApp() {
+        const { ref, onMounted, onBeforeUnmount } = Vue;
+
+        const comps = {};
+        if (window.VueComponents?.WaitingConnected) {
+          comps.WaitingConnected = window.VueComponents.WaitingConnected;
+        }
+        if (window.VueComponents?.TemplateCamMicPermissions) {
+          comps.TemplateCamMicPermissions = window.VueComponents.TemplateCamMicPermissions;
+        }
+        // Harwinder registered components
+        if (window.VueComponents?.TemplateCamMicPermissions) {
+          comps.TemplateCamMicPermissions = window.VueComponents.TemplateCamMicPermissions;
+        }
+        if (window.VueComponents?.ConnectingSection) {
+          comps.ConnectingSection = window.VueComponents.ConnectingSection;
+        }
+        if (window.VueComponents?.BackButton) {
+          comps.BackButton = window.VueComponents.BackButton;
+        }
+        if (window.VueComponents?.CameraMicControls) {
+          comps.CameraMicControls = window.VueComponents.CameraMicControls;
+        }
+        if (window.VueComponents?.JoinCallButton) {
+          comps.JoinCallButton = window.VueComponents.JoinCallButton;
+        }
+        if (window.VueComponents?.SettingsPanel) {
+          comps.SettingsPanel = window.VueComponents.SettingsPanel;
+        }
+        if (window.VueComponents?.PrejoinMobileHeader) {
+          comps.PrejoinMobileHeader = window.VueComponents.PrejoinMobileHeader;
+        }
+        if (window.VueComponents?.MobileJoinButton) {
+          comps.MobileJoinButton = window.VueComponents.MobileJoinButton;
+        }
+        if (window.VueComponents?.TemplateChimeCalleeConnected) {
+          comps.TemplateChimeCalleeConnected = window.VueComponents.TemplateChimeCalleeConnected;
+        }
+        if (window.VueComponents?.ChatSidebar) {
+          comps.ChatSidebar = window.VueComponents.ChatSidebar;
+        }
+
+        try {
+          const app = Vue.createApp({
+            components: comps,
+            setup() {
+              const state = ref('');
+              const substate = ref('');
+              const stateSel = ref('');
+              const subSel = ref('');
+
+              // Reactive settings object
+              const ChimeCallSettings = Vue.reactive({
+                callCamStatus: false,
+                callMicStatus: false,
+                userAvatarUrl: '',
+              });
+
+              window.settings = ChimeCallSettings; 
+
+              // ✅ Vue click handlers
+              // function to toggle camera
+              function toggleCamera() {
+                const newState = !ChimeCallSettings.callCamStatus;
+                ChimeCallSettings.callCamStatus = newState;
+                if (typeof chimeHandler !== 'undefined' && chimeHandler.handleVideoToggle) {
+                  chimeHandler.handleVideoToggle(newState);
+                }
+                console.log(`[Vue] Camera toggled → ${newState ? 'ON' : 'OFF'}`);
+              }
+
+              // function to toggle microphone
+              function toggleMicrophone() {
+                const newState = !ChimeCallSettings.callMicStatus;
+                ChimeCallSettings.callMicStatus = newState;
+                if (typeof chimeHandler !== 'undefined' && chimeHandler.handleAudioToggle) {
+                  chimeHandler.handleAudioToggle(newState);
+                }
+                console.log(`[Vue] Microphone toggled → ${newState ? 'ON' : 'OFF'}`);
+              }
+
+              // const applyUiState = (st, sub) => {
+              //   alert('state changed: ' + st);
+              //   state.value = st;
+              //   substate.value = sub;
+              //   document.dispatchEvent(
+              //     new CustomEvent('chime-ui::state', {
+              //       detail: { state: st, substate: sub || '', ts: Date.now() },
+              //     }),
+              //   );
+              // };
+
+              // Prosenjit: NEW: refs for the attribute-based visibility
+              const callRoot = ref(null);       // bind this to the element that has data-call-waiting
+              const isWaiting = ref(false);      // true -> show "waiting layout", false -> show "video call"
+              let attrObserver = null;
+
+              const handleUiStateEvent = (e) => {
+                const d = e.detail;
+                if (d && d.state) {
+                  state.value = d.state;
+                  substate.value = d.substate || '';
+                }
+              };
+
+              onMounted(() => {
+                document.addEventListener('chime-ui::state', handleUiStateEvent);
+
+                // Prosenjit: Read initial attribute
+                const el = callRoot.value || document.querySelector('[data-call-waiting]');
+                if (!el) {
+                  console.warn('No element found with data-call-waiting');
+                } else {
+                  isWaiting.value = el.getAttribute('data-call-waiting') === 'true';
+
+                  // Keep in sync with live attribute changes
+                  attrObserver = new MutationObserver((mutations) => {
+                    for (const m of mutations) {
+                      if (m.type === 'attributes' && m.attributeName === 'data-call-waiting') {
+                        isWaiting.value = el.getAttribute('data-call-waiting') === 'true';
+                      }
+                    }
+                  });
+                  attrObserver.observe(el, { attributes: true, attributeFilter: ['data-call-waiting'] });
+                }
+
+                const logUiClick = (action) => {
+                  if (typeof DebugLogger !== 'undefined' && DebugLogger?.addLog) {
+                    DebugLogger.addLog(state.value || 'ready', 'NOTICE', 'UI', `${action} clicked`);
+                  }
+                };
+
+                const buttons = [
+                  { id: 'link-video-on', label: 'Video On' },
+                  { id: 'link-video-off', label: 'Video Off' },
+                  { id: 'link-audio-on', label: 'Audio On' },
+                  { id: 'link-audio-off', label: 'Audio Off' },
+                  { id: 'link-react', label: 'React' },
+                  { id: 'link-send-gift', label: 'Send Gift' },
+                  { id: 'link-send-chat', label: 'Send Chat' },
+                  { id: 'link-send-chat-promo', label: 'Send Promo' },
+                  { id: 'link-tip', label: 'Tip' },
+                  { id: 'link-join-meeting', label: 'Join Meeting' },
+                  { id: 'link-start', label: 'Start' },
+                  { id: 'link-end', label: 'End' },
+                ];
+
+                buttons.forEach(({ id, label }) => {
+                  const el = document.getElementById(id);
+                  if (el) {
+                    el.addEventListener('click', () => logUiClick(label));
+                  }
+                });
+              });
+
+              onBeforeUnmount(() => {
+                document.removeEventListener('chime-ui::state', handleUiStateEvent);
+              });
+
+              return {
+                state,
+                substate,
+                stateSel,
+                subSel,
+                callRoot,   // expose ref
+                isWaiting,  // used by v-if/v-else
+                ChimeCallSettings,
+                toggleCamera,
+                toggleMicrophone,
+              };
+            },
+          });
+
+          //Prosenjit: Register your two components here
+          if (typeof registerCallWaiting === 'function') registerCallWaiting(app);
+          if (typeof registerMainCallVideo === 'function') registerMainCallVideo(app);
+          if (typeof registerRemoteParticipant === 'function') registerRemoteParticipant(app);
+          if (typeof registerBottomLeftInfo === 'function') registerBottomLeftInfo(app);
+          if (typeof registerBottomCenterControls === 'function') registerBottomCenterControls(app);
+          if (typeof registerBottomRightControls === 'function') registerBottomRightControls(app);
+          if (typeof registerBottomControls === 'function') registerBottomControls(app);
+          if (typeof registerMobileHeader === 'function') registerMobileHeader(app);
+
+          // Bottom Panel Buttons
+          if (typeof registerChatButton === 'function') registerChatButton(app);
+          if (typeof registerReactButton === 'function') registerReactButton(app);
+          if (typeof registerSettingsButton === 'function') registerSettingsButton(app);
+          if (typeof registerTipButtons === 'function') registerTipButtons(app);
+          if (typeof registerCameraMicControls === 'function') registerCameraMicControls(app);
+          if (typeof registerSettingsTrigger === 'function') registerSettingsTrigger(app);
+          if (typeof registerToggleScreensize === 'function') registerToggleScreensize(app);
+          if (typeof registerCameraButton === 'function') registerCameraButton(app);
+          if (typeof registerMicrophoneButton === 'function') registerMicrophoneButton(app);
+
+
+          
+
+          app.mount('#app');
+        } catch (error) {
+          console.error('Error creating Vue app:', error);
+        }
+      }
+
+      function ensureVueReady() {
+        if (!window.Vue || typeof Vue.createApp !== 'function') {
+          console.warn('Vue not ready yet. Retrying...');
+          setTimeout(ensureVueReady, 100);
+          return;
+        }
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', startApp, { once: true });
+        } else {
+          startApp();
+        }
+      }
+
+      ensureVueReady();
+    })();
+  </script>
+
+
+
+
+  <script>
+    /* ======================================================================
+     * EXACT LOGIN FLOW HANDLER (YOUR REQchime-ui:RED ORDER + our CallHandler.init)
+     * ==================================================================== */
+    document.addEventListener("event:user:loggedin", (e) => {
+      const userId = e?.detail?.userId;
+      if (!userId) {
+        console.warn("[SocketHandler] event:user:loggedin missing userId");
+        return;
+      }
+
+      try {
+        SocketHandler.identifyCurrentUser(userId);
+        SocketHandler._initializeSocketConnection();
+        CallHandler.init(); // ← initialize the class IMMEDIATELY after starting socket
+        console.log(
+          `[SocketHandler] Initialized WebSocket for user: ${userId}`
+        );
+      } catch (err) {
+        console.error(
+          "[SocketHandler] Failed to initialize after login:",
+          err
+        );
+      }
+    });
+
+
+
+    // 🔵 EXACT button → dispatch event:user:loggedin (DO NOT CHANGE THIS PATTERN)
+    document
+      .getElementById("btnLoginRegister")
+      .addEventListener("click", () => {
+        const userId = document.getElementById("currentUserId").value.trim();
+        if (!userId) {
+          console.warn("Missing userId");
+          DebugLogger.addLog(
+            "initialize",
+            "CRITICAL",
+            "btnLoginRegister",
+            "Enter your User ID first."
+          );
+          return;
+        }
+        document.dispatchEvent(
+          new CustomEvent("event:user:loggedin", { detail: { userId } })
+        );
+        console.log("[Demo] Dispatched event:user:loggedin for", userId);
+      });
+
+    // Video Effects: Blur Level
+    document.getElementById("blurLevelSelect")?.addEventListener("change", (e) => {
+      const level = e.target.value;
+      console.log("[Demo] Blur level changed to:", level);
+      if (typeof DebugLogger !== "undefined") {
+        DebugLogger.system(`Blur level changed to: ${level}`);
+      }
+      if (typeof coreChime !== "undefined") {
+        coreChime.setVideoBlur(level).catch((err) => {
+          console.error("[Demo] Failed to set blur:", err);
+        });
+      }
+    });
+
+    // Video Effects: Background Image
+    document.getElementById("backgroundSelect")?.addEventListener("change", (e) => {
+      const imageUrl = e.target.value;
+      console.log("[Demo] Background changed to:", imageUrl || "None");
+      if (typeof DebugLogger !== "undefined") {
+        DebugLogger.system(`Background changed to: ${imageUrl || 'none'}`);
+      }
+      if (typeof coreChime !== "undefined") {
+        coreChime.setBackgroundImage(imageUrl || null).catch((err) => {
+          console.error("[Demo] Failed to set background:", err);
+        });
+      }
+    });
+
+    /* =========================================================================
+     * OPTIONAL LOCAL BRIDGE (for demo/testing only — delete if backend fans out)
+     * Translates local call:initiate → socket call:incoming to the callee.
+     * ========================================================================= */
+    // document.addEventListener(CallHandler.FLAGS.CALL_INITIATE, (e) => {
+    //   const d = e && e.detail ? e.detail : undefined;
+    //   console.log("[CallHandler] LOCAL BRIDGE call:initiate", d);
+    //   if (!d) { console.log("[CallHandler] bridge missing detail"); return; }
+    //   if (d.callerId === undefined || d.callerId === "") { console.log("[CallHandler] bridge missing callerId"); return; }
+    //   if (d.calleeId === undefined || d.calleeId === "") { console.log("[CallHandler] bridge missing calleeId"); return; }
+    //   if (d.type === undefined     || d.type === "")     { console.log("[CallHandler] bridge missing type"); return; }
+    //   if (d.role === undefined     || d.role === "")     { console.log("[CallHandler] bridge missing caller role"); return; }
+
+    //   SocketHandler.sendSocketMessage({
+    //     flag: CallHandler.FLAGS.CALL_INCOMING,
+    //     payload: { to: d.calleeId, callType: d.type, callerId: d.callerId, calleeId: d.calleeId, role: d.role },
+    //     schema: CallHandler.SCHEMA.initiate
+    //   });
+    //   console.log("[CallHandler] LOCAL BRIDGE sent CALL_INCOMING to callee");
+    // });
+  </script>
+
+  <script>
+    /* ======================================================================
+     * AUTOMATIC LAYOUT SYSTEM
+     * Applies Tailwind grid layouts based on active participants
+     * ==================================================================== */
+    (function () {
+      const stage = document.getElementById("video-containers");
+      if (!stage) {
+        console.warn("[Layout System] #video-containers not found");
+        return;
+      }
+
+      // Get all tile elements by ID
+      const host = document.getElementById("host-container");
+      const collab1 = document.getElementById("collab1-container");
+      const collab2 = document.getElementById("collab2-container");
+      const collab3 = document.getElementById("collab3-container");
+      const attendee = document.getElementById("attendee-container");
+
+      if (!host || !collab1 || !collab2 || !collab3 || !attendee) {
+        console.warn("[Layout System] Missing tile elements");
+        return;
+      }
+
+      // One source of truth for base classes
+      const BASE_TILE =
+        "tile flex items-center justify-center rounded-xl border border-slate-300 bg-slate-900 text-white video-card";
+
+      const MINI_OVERLAY = "mini-overlay";
+      const FULL_VIEW = "full-view";
+
+      function setBase(el) {
+        if (el) {
+          el.className =
+            BASE_TILE +
+            " " +
+            (el.classList.contains("hidden") ? "hidden" : "");
+        }
+      }
+
+      function hide(el) {
+        if (el) el.className = BASE_TILE + " video-card hidden";
+      }
+
+      function show(el, extra = "") {
+        if (el) {
+          el.className = BASE_TILE + " " + (extra ? extra : "");
+        }
+      }
+
+      const layouts = {
+        // Host main (full view) + Attendee mini overlay
+        host_attendee() {
+          show(host, FULL_VIEW);
+          hide(collab1);
+          hide(collab2);
+          hide(collab3);
+          show(attendee, MINI_OVERLAY);
+          console.log(
+            "[Layout System] Applied: host_attendee (1 host + 1 attendee)"
+          );
+        },
+
+        // Attendee main (full view) + Host mini overlay
+        host_attendee_mainAtt() {
+          show(attendee, FULL_VIEW);
+          show(host, MINI_OVERLAY);
+          hide(collab1);
+          hide(collab2);
+          hide(collab3);
+          console.log(
+            "[Layout System] Applied: host_attendee_mainAtt (attendee main)"
+          );
+        },
+
+        // 2×2 grid: Host + 3 Collaborators
+        host_3collabs() {
+          show(host, "col-span-6 row-span-1 row-start-1 col-start-1");
+          show(collab1, "col-span-6 row-span-1 row-start-1 col-start-7");
+          show(collab2, "col-span-6 row-span-1 row-start-2 col-start-1");
+          show(collab3, "col-span-6 row-span-1 row-start-2 col-start-7");
+          show(attendee, MINI_OVERLAY);
+          console.log("[Layout System] Applied: host_3collabs (2x2 grid)");
+        },
+
+        // Split: Host (left) + 1 Collaborator (right) - both full height
+        host_1collab() {
+          show(host, "col-span-6 row-span-2 row-start-1 col-start-1");
+          show(collab1, "col-span-6 row-span-2 row-start-1 col-start-7");
+          hide(collab2);
+          hide(collab3);
+          show(attendee, MINI_OVERLAY);
+          console.log(
+            "[Layout System] Applied: host_1collab (side-by-side full height)"
+          );
+        },
+
+        // Host centered top + 2 Collaborators side-by-side on bottom + Attendee overlay (all same size)
+        host_2collabs() {
+          show(host, "col-span-6 row-span-1 row-start-1 col-start-4"); // centered at top, same size as collabs
+          show(collab1, "col-span-6 row-span-1 row-start-2 col-start-1"); // bottom left
+          show(collab2, "col-span-6 row-span-1 row-start-2 col-start-7"); // bottom right
+          hide(collab3);
+          show(attendee, MINI_OVERLAY);
+          console.log(
+            "[Layout System] Applied: host_2collabs (host centered top + 2 collabs bottom - all same size + attendee overlay)"
+          );
+        },
+      };
+
+      // Track current layout and re-entrancy protection
+      let currentLayout = null;
+      let isApplyingLayout = false;
+
+      function applyLayout(name) {
+        if (name === undefined || isApplyingLayout) return;
+
+        // Skip if layout hasn't changed
+        if (currentLayout === name) {
+          console.log(`[Layout System] Layout already applied: ${name}`);
+          return;
+        }
+
+        isApplyingLayout = true;
+        console.log(`[Layout System] Applying layout: ${name}`);
+
+        // Disconnect observer temporarily to prevent infinite loop
+        observer.disconnect();
+
+        // Reset all tiles to base state
+        [host, collab1, collab2, collab3, attendee].forEach(setBase);
+
+        // Apply the specified layout
+        if (layouts[name]) {
+          layouts[name]();
+        } else {
+          console.warn(`[Layout System] Unknown layout: ${name}`);
+        }
+
+        stage.setAttribute("data-layout", name);
+        currentLayout = name;
+
+        // Reconnect observer after layout is applied
+        setTimeout(() => {
+          observer.observe(stage, {
+            attributes: true,
+            attributeFilter: ["class"],
+            subtree: true,
+          });
+          isApplyingLayout = false;
+        }, 50);
+      }
+
+      // Automatic layout detection based on active participants
+      function autoDetectAndApplyLayout() {
+        const tiles = [host, collab1, collab2, collab3, attendee];
+        const activeTiles = tiles.filter(
+          (t) => !t.classList.contains("hidden")
+        );
+        const activeCount = activeTiles.length;
+
+        console.log(
+          `[Layout System] Auto-detecting layout for ${activeCount} active participants`
+        );
+
+        // Get active participants by type
+        const hasHost = !host.classList.contains("hidden");
+        const hasAttendee = !attendee.classList.contains("hidden");
+        const activeCollabs = [collab1, collab2, collab3].filter(
+          (c) => !c.classList.contains("hidden")
+        );
+        const collabCount = activeCollabs.length;
+
+        // Determine the best layout based on active participants
+        let targetLayout = "host_attendee";
+
+        console.log(
+          `[Layout Detection] hasHost: ${hasHost}, hasAttendee: ${hasAttendee}, collabCount: ${collabCount}`
+        );
+
+        if (activeCount === 1) {
+          // Single participant
+          if (hasHost) targetLayout = "host_attendee";
+          else targetLayout = "host_attendee_mainAtt";
+        } else if (activeCount === 2) {
+          // Two participants
+          if (hasHost && hasAttendee) {
+            targetLayout = "host_attendee";
+            console.log(
+              `[Layout Detection] 2 participants: Host + Attendee → ${targetLayout}`
+            );
+          } else if (hasHost && collabCount === 1) {
+            targetLayout = "host_1collab";
+            console.log(
+              `[Layout Detection] 2 participants: Host + 1 Collab → ${targetLayout}`
+            );
+          } else {
+            targetLayout = "host_attendee";
+            console.log(
+              `[Layout Detection] 2 participants: Unknown combination → ${targetLayout}`
+            );
+          }
+        } else if (activeCount === 3) {
+          // Three participants
+          if (hasHost && collabCount === 1) {
+            targetLayout = "host_1collab";
+            console.log(
+              `[Layout Detection] 3 participants: Host + 1 Collab + (other) → ${targetLayout}`
+            );
+          } else if (hasHost && collabCount === 2) {
+            targetLayout = "host_2collabs";
+            console.log(
+              `[Layout Detection] 3 participants: Host + 2 Collabs → ${targetLayout}`
+            );
+          } else if (hasHost && hasAttendee) {
+            // Host + Attendee + 1 Collab (no 2 collabs case exists)
+            targetLayout = "host_1collab";
+            console.log(
+              `[Layout Detection] 3 participants: Host + Attendee + 1 Collab → ${targetLayout}`
+            );
+          } else {
+            targetLayout = "host_3collabs";
+            console.log(
+              `[Layout Detection] 3 participants: Unknown → ${targetLayout}`
+            );
+          }
+        } else if (activeCount === 4) {
+          // Four participants: Could be Host + 2 Collabs + Attendee OR Host + 3 Collabs
+          if (hasHost && hasAttendee && collabCount === 2) {
+            // Host + 2 Collabs + Attendee
+            targetLayout = "host_2collabs";
+            console.log(
+              `[Layout Detection] 4 participants: Host + 2 Collabs + Attendee → ${targetLayout}`
+            );
+          } else if (hasHost && collabCount === 3) {
+            // Host + 3 Collabs
+            targetLayout = "host_3collabs";
+            console.log(
+              `[Layout Detection] 4 participants: Host + 3 Collabs → ${targetLayout}`
+            );
+          } else {
+            // Fallback
+            targetLayout = "host_2collabs";
+            console.log(
+              `[Layout Detection] 4 participants: Fallback → ${targetLayout}`
+            );
+          }
+        } else if (activeCount === 5) {
+          // Five participants: Host + 3 Collabs + Attendee
+          targetLayout = "host_3collabs";
+          console.log(
+            `[Layout Detection] 5 participants: Host + 3 Collabs + Attendee → ${targetLayout}`
+          );
+        } else {
+          // Default for any other count
+          console.log(
+            "[Layout Detection] Applying default layout for active count:",
+            activeCount
+          );
+          targetLayout = "host_attendee";
+        }
+
+        // Only apply if layout is different
+        if (targetLayout !== currentLayout) {
+          applyLayout(targetLayout);
+        }
+      }
+
+      // Watch for changes to active participants using MutationObserver
+      const observer = new MutationObserver(() => {
+        // Prevent infinite loops by checking if we're already applying layout
+        if (isApplyingLayout) {
+          return;
+        }
+
+        // Debounce to avoid excessive calls
+        if (window.layoutUpdateTimeout) {
+          clearTimeout(window.layoutUpdateTimeout);
+        }
+        window.layoutUpdateTimeout = setTimeout(() => {
+          autoDetectAndApplyLayout();
+        }, 100);
+      });
+
+      // Observe the stage for class changes on tiles
+      observer.observe(stage, {
+        attributes: true,
+        attributeFilter: ["class"],
+        subtree: true,
+      });
+
+      // Initial layout detection
+      autoDetectAndApplyLayout();
+
+      console.log("[Layout System] ✅ Initialized automatic layout system");
+
+      // Expose layout functions globally for manual testing if needed
+      window.autoLayout = {
+        applyLayout,
+        autoDetectAndApplyLayout,
+        layouts,
+      };
+
+      // Test function to show containers for visual testing
+      window.showTestTiles = function () {
+        console.log(
+          "[Layout System] Showing test tiles for visual inspection..."
+        );
+        host.classList.remove("hidden");
+        collab1.classList.remove("hidden");
+        collab2.classList.remove("hidden");
+        collab3.classList.remove("hidden");
+        attendee.classList.remove("hidden");
+      };
+
+      // Test function to hide all tiles
+      window.hideTestTiles = function () {
+        console.log("[Layout System] Hiding all test tiles...");
+        host.classList.add("hidden");
+        collab1.classList.add("hidden");
+        collab2.classList.add("hidden");
+        collab3.classList.add("hidden");
+        attendee.classList.add("hidden");
+      };
+
+      console.log("[Layout System] 💡 Test functions available:");
+      console.log(
+        "  - showTestTiles() // Show all 5 tiles with colored borders"
+      );
+      console.log("  - hideTestTiles() // Hide all tiles");
+      console.log(
+        "  - autoLayout.applyLayout('layout-name') // Apply specific layout"
+      );
+    })();
+  </script>
+
+
+
+  <!--
+
+CallHandler.dipatchUI("caller:startCall");
+
+
+
+
+    -->
+
+    <!-- Prosenjit insert tile layout -->
+    <script>
+      (function () {
+        function log(...args) { console.log('[LayoutButtons]', ...args); }
+        function warn(...args) { console.warn('[LayoutButtons]', ...args); }
+      
+        // Wait for DOM ready and Vue mount (soft)
+        function ready(fn) {
+          if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            setTimeout(fn, 10);
+          } else {
+            document.addEventListener('DOMContentLoaded', fn, { once: true });
+          }
+        }
+      
+        ready(() => {
+          log('initializing…');
+      
+          // Find the "stage" that we need to control
+          const stage = document.getElementById('stage') || document.getElementById('video-containers') || document.querySelector('[data-chime-templates]');
+      
+          if (!stage) {
+            warn('no #stage, #video-containers, or [data-chime-templates] found — aborting.');
+            return;
+          }
+      
+          // Two markup styles we support:
+          const hostA = stage.querySelector('[data-name="host"]');
+          const collab1A = stage.querySelector('[data-name="collab1"]');
+          const collab2A = stage.querySelector('[data-name="collab2"]');
+          const collab3A = stage.querySelector('[data-name="collab3"]');
+          const attendeeA = stage.querySelector('[data-name="attendee"], #attendee');
+      
+          // Style B (callFlowfinal IDs)
+          const hostB = document.getElementById('host-container');
+          const collab1B = document.getElementById('collab1-container');
+          const collab2B = document.getElementById('collab2-container');
+          const collab3B = document.getElementById('collab3-container');
+          const attendeeB = document.getElementById('attendee-container');
+      
+          // Pick style (prefer B if any B tile exists)
+          const useB = !!(hostB || collab1B || attendeeB);
+          const host = useB ? hostB : hostA;
+          const collab1 = useB ? collab1B : collab1A;
+          const collab2 = useB ? collab2B : collab2A;
+          const collab3 = useB ? collab3B : collab3A;
+          const attendee = useB ? attendeeB : attendeeA;
+      
+          if (!host || !attendee) {
+            warn('host or attendee tiles not found — UI will still attempt to apply classes but check element IDs/data-names.');
+          }
+      
+          // base & helper functions (keeps existing "video-card" or "hidden")
+          const BASE_TILE    = "tile flex items-center justify-center rounded-xl border border-slate-300 bg-slate-900 text-white";
+          const MINI_OVERLAY = "absolute bottom-4 right-4 w-[25rem] h-[15rem] z-50 rounded-xl";
+          const FULL_VIEW    = "absolute inset-0 w-auto h-auto rounded-xl";
+      
+          function setBase(el) {
+            if (!el) return;
+            // preserve existing 'hidden' or 'video-card'
+            const wasHidden = el.classList.contains('hidden');
+            const hasVideoCard = el.classList.contains('video-card');
+            el.className = BASE_TILE + (hasVideoCard ? ' video-card' : '') + (wasHidden ? ' hidden' : '');
+            // store base for reference
+            el.dataset.base = BASE_TILE;
+          }
+          function hide(el) { if (!el) return; el.className = BASE_TILE + (el.classList.contains('video-card') ? ' video-card' : '') + ' hidden'; }
+          function show(el, extra='') { if (!el) return; el.className = BASE_TILE + (extra ? ' ' + extra : ''); }
+      
+          // Central layout applier used by clicks
+          function applyLocalLayout(name) {
+            // reset base first
+            [host, collab1, collab2, collab3, attendee].forEach(setBase);
+      
+            switch (name) {
+              case 'host_attendee':
+                if (host) show(host, FULL_VIEW);
+                if (collab1) hide(collab1);
+                if (collab2) hide(collab2);
+                if (collab3) hide(collab3);
+                if (attendee) show(attendee, MINI_OVERLAY);
+                break;
+      
+              case 'host_attendee_mainAtt':
+                if (attendee) show(attendee, FULL_VIEW);
+                if (host) show(host, MINI_OVERLAY);
+                if (collab1) hide(collab1);
+                if (collab2) hide(collab2);
+                if (collab3) hide(collab3);
+                break;
+      
+              case 'host_3collabs':
+                if (host) show(host, 'col-span-6 row-span-1 row-start-1 col-start-1');
+                if (collab1) show(collab1, 'col-span-6 row-span-1 row-start-1 col-start-7');
+                if (collab2) show(collab2, 'col-span-6 row-span-1 row-start-2 col-start-1');
+                if (collab3) show(collab3, 'col-span-6 row-span-1 row-start-2 col-start-7');
+                if (attendee) show(attendee, MINI_OVERLAY);
+                break;
+      
+              case 'host_1collab':
+                if (host) show(host, 'col-span-6 row-span-2 row-start-1 col-start-1');
+                if (collab1) show(collab1, 'col-span-6 row-span-2 row-start-1 col-start-7');
+                if (collab2) hide(collab2);
+                if (collab3) hide(collab3);
+                if (attendee) show(attendee, MINI_OVERLAY);
+                break;
+      
+              case 'host_2collabs':
+                if (host) show(host, 'col-span-6 row-span-1 row-start-1 col-start-4');
+                if (collab1) show(collab1, 'col-span-6 row-span-1 row-start-2 col-start-1');
+                if (collab2) show(collab2, 'col-span-6 row-span-1 row-start-2 col-start-7');
+                if (collab3) hide(collab3);
+                if (attendee) show(attendee, MINI_OVERLAY);
+                break;
+      
+              default:
+                warn('unknown layout:', name);
+                return;
+            }
+      
+            // reflect layout on stage attribute (helps other code/readers)
+            try { stage.setAttribute('data-layout', name); } catch (e) { /* ignore */ }
+      
+            log('applied local layout →', name);
+          }
+      
+          // Public button handler:
+          function onLayoutButtonClick(layoutName) {
+            log('button clicked →', layoutName);
+      
+            // 1) Try to call a global applyLayout if available (some files create this)
+            try {
+              if (typeof window.applyLayout === 'function') {
+                log('calling window.applyLayout(...)');
+                window.applyLayout(layoutName);
+                try { stage.setAttribute('data-layout', layoutName); } catch (e) {}
+                return;
+              }
+            } catch (e) { /* ignore */ }
+      
+            // 2) Try to call a known global LayoutSystem.applyLayout (common naming) - safe-guarded
+            try {
+              if (window.LayoutSystem && typeof window.LayoutSystem.applyLayout === 'function') {
+                log('calling LayoutSystem.applyLayout(...)');
+                window.LayoutSystem.applyLayout(layoutName);
+                try { stage.setAttribute('data-layout', layoutName); } catch (e) {}
+                return;
+              }
+            } catch (e) { /* ignore */ }
+      
+            // 3) Fallback to local implementation
+            applyLocalLayout(layoutName);
+      
+            // 4) Emit a custom event so other code can react if desired
+            document.dispatchEvent(new CustomEvent('layout:applied', { detail: { layout: layoutName } }));
+          }
+      
+          // Attach direct listeners to existing buttons (copy/paste area in data-chime-templates)
+          function bindExistingButtons() {
+            const btns = Array.from(document.querySelectorAll('button[data-layout]'));
+            btns.forEach(btn => {
+              // avoid duplicate handlers
+              if (btn.__layout_bound) return;
+              btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const name = btn.getAttribute('data-layout');
+                if (!name) return;
+                onLayoutButtonClick(name);
+              }, { passive: false });
+              btn.__layout_bound = true;
+            });
+            log('bound', btns.length, 'existing buttons');
+          }
+      
+          bindExistingButtons();
+      
+          // event delegation for buttons that may be rendered later by Vue
+          document.addEventListener('click', (e) => {
+            const btn = e.target.closest && e.target.closest('button[data-layout]');
+            if (!btn) return;
+            // ignore if already handled by direct listener
+            if (btn.__layout_bound) return;
+            const name = btn.getAttribute('data-layout');
+            if (!name) return;
+            onLayoutButtonClick(name);
+          }, { passive: true });
+      
+          // Optional: keep observer to re-assert base classes if another layout system mutates DOM
+          try {
+            const observer = new MutationObserver(() => {
+              // keep 'tile' class present so CSS rules continue to apply
+              [host, collab1, collab2, collab3, attendee].forEach(el => {
+                if (!el) return;
+                if (!el.classList.contains('tile')) el.classList.add('tile');
+              });
+            });
+            observer.observe(stage, { attributes: true, childList: true, subtree: true });
+          } catch (err) {
+            // not critical
+          }
+      
+          // --- NEW: apply default layout on initial load ---
+          try {
+            // ensure base classes exist before applying
+            [host, collab1, collab2, collab3, attendee].forEach(setBase);
+            // apply default layout
+            const defaultLayout = 'host_attendee';
+            log('applying default layout on load →', defaultLayout);
+            onLayoutButtonClick(defaultLayout);
+          } catch (err) {
+            warn('failed to apply default layout:', err);
+          }
+      
+          log('ready — click a button to apply a layout. If nothing changes, check console for warnings.');
+        });
+      })();
+      </script>
+
+  <!-- ============================================
+       DEBUG CONTROLS - Test Chat
+       ============================================ -->
+  <div id="debug-test-chat" style="position: fixed; top: 10px; right: 10px; z-index: 10000; background: rgba(0,0,0,0.9); color: white; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 12px; max-width: 300px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+    <h4 style="margin: 0 0 10px 0; font-size: 14px; font-weight: bold;">🧪 Test Chat Controls</h4>
+    
+    <button id="debug-show-chat" style="width: 100%; padding: 8px; margin-bottom: 10px; background: #07F468; color: black; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">
+      Show Chat
+    </button>
+
+    <div style="margin-bottom: 10px;">
+      <label style="display: block; margin-bottom: 4px;">Test Message (as You):</label>
+      <input id="debug-chat-input-self" type="text" placeholder="Type message..." style="width: 100%; padding: 6px; margin-bottom: 6px; border: 1px solid #444; background: #222; color: white; border-radius: 4px;">
+      <button id="debug-send-self" style="width: 100%; padding: 6px; background: #0066FF; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        Send as You
+      </button>
+    </div>
+
+    <div style="margin-bottom: 10px;">
+      <label style="display: block; margin-bottom: 4px;">Test Message (as Other):</label>
+      <input id="debug-chat-input-other" type="text" placeholder="Type message..." style="width: 100%; padding: 6px; margin-bottom: 6px; border: 1px solid #444; background: #222; color: white; border-radius: 4px;">
+      <button id="debug-send-other" style="width: 100%; padding: 6px; background: #FF0066; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        Send as Other
+      </button>
+    </div>
+
+    <div style="margin-bottom: 10px;">
+      <button id="debug-send-emoji" style="width: 100%; padding: 6px; background: #FFD700; color: black; border: none; border-radius: 4px; cursor: pointer;">
+        Send Emoji Test ❤️
+      </button>
+    </div>
+
+    <div style="margin-bottom: 10px;">
+      <button id="debug-send-media" style="width: 100%; padding: 6px; background: #9B59B6; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        Send Test Media Card
+      </button>
+    </div>
+
+    <div style="margin-bottom: 10px;">
+      <button id="debug-send-gift" style="width: 100%; padding: 6px; background: #E74C3C; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        Send Test Gift 🎁
+      </button>
+    </div>
+
+    <div>
+      <button id="debug-send-reaction" style="width: 100%; padding: 6px; background: #3498DB; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        Send Test Reaction 😀
+      </button>
+    </div>
+  </div>
+
+  <script>
+  // Debug controls for testing chat without being in a call
+  (function initDebugChatControls() {
+    // Show chat button
+    document.getElementById('debug-show-chat')?.addEventListener('click', () => {
+      const chatPanel = document.getElementById('chatPanel');
+      if (chatPanel) {
+        chatPanel.classList.remove('hidden');
+        chatPanel.setAttribute('aria-hidden', 'false');
+        console.log('[Debug] Chat panel shown');
+      }
+    });
+
+    // Send message as self
+    document.getElementById('debug-send-self')?.addEventListener('click', () => {
+      const input = document.getElementById('debug-chat-input-self');
+      const message = input.value.trim();
+      if (!message) return;
+
+      window.dispatchEvent(new CustomEvent('receiveChatMessage', {
+        detail: {
+          message: message,
+          sender: 'You',
+          timestamp: Date.now(),
+          isSelf: true
+        }
+      }));
+      input.value = '';
+      console.log('[Debug] Sent message as self:', message);
+    });
+
+    // Send message as other
+    document.getElementById('debug-send-other')?.addEventListener('click', () => {
+      const input = document.getElementById('debug-chat-input-other');
+      const message = input.value.trim();
+      if (!message) return;
+
+      window.dispatchEvent(new CustomEvent('receiveChatMessage', {
+        detail: {
+          message: message,
+          sender: 'Test User',
+          timestamp: Date.now(),
+          isSelf: false
+        }
+      }));
+      input.value = '';
+      console.log('[Debug] Sent message as other:', message);
+    });
+
+    // Send emoji test
+    document.getElementById('debug-send-emoji')?.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('receiveChatMessage', {
+        detail: {
+          message: 'Hello! ❤️😊🎉',
+          sender: 'Emoji Tester',
+          timestamp: Date.now(),
+          isSelf: false
+        }
+      }));
+      console.log('[Debug] Sent emoji message');
+    });
+
+    // Send test media card
+    document.getElementById('debug-send-media')?.addEventListener('click', () => {
+      const testMediaCard = [{
+        scope: 'media',
+        item: {
+          id: 999,
+          type: 'video',
+          durationOrCount: '5:30',
+          creator: { username: 'TestCreator' },
+          thumbnail_url: 'https://picsum.photos/seed/test/400/300',
+          title: 'Test Media Card',
+          is_subscription: true,
+          subscription: { price: 9.99 },
+          is_p2v: true,
+          p2v: { price: 4.99 }
+        }
+      }];
+
+      window.dispatchEvent(new CustomEvent('ingest-cards', { detail: testMediaCard }));
+      console.log('[Debug] Sent test media card');
+    });
+
+    // Send test gift
+    document.getElementById('debug-send-gift')?.addEventListener('click', () => {
+      window.dispatchEvent(new CustomEvent('receiveGift', {
+        detail: {
+          giftId: Math.floor(Math.random() * 7) + 1,
+          qty: 5,
+          sender: 'Gift Tester'
+        }
+      }));
+      console.log('[Debug] Sent test gift');
+    });
+
+    // Send test reaction
+    document.getElementById('debug-send-reaction')?.addEventListener('click', () => {
+      const reactions = ['😀', '❤️', '👍', '🎉', '🔥', '😍', '🤣'];
+      const emoji = reactions[Math.floor(Math.random() * reactions.length)];
+      window.dispatchEvent(new CustomEvent('receiveReaction', {
+        detail: {
+          emoji: emoji,
+          sender: 'Reaction Tester'
+        }
+      }));
+      console.log('[Debug] Sent test reaction:', emoji);
+    });
+
+    console.log('[Debug] ✅ Test chat controls initialized');
+  })();
+  </script>
+</body>
+
+</html>

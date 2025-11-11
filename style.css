@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Set root font-size to 10px so 1rem = 10px */
+    font-size: 10px;
+
+    /* ===== COLOR SYSTEM ===== */
+    /* Brand Colors */
+    --color-brand-primary: 144.6 94.4% 49.2%; /* #07F468 */
+    --color-brand-dark: 221 40.7% 8%; /* #0C111D */
+
+    /* Neutral Colors */
+    --color-white: 0 0% 100%; /* #FFFFFF */
+    --color-gray-50: 210 40% 98%; /* #F9FAFB */
+    --color-gray-200: 214 32% 91%; /* #EAECF0 */
+    --color-gray-600: 215 25% 27%; /* #475467 */
+    --color-gray-950: 221 40.7% 8%; /* #0C111D */
+    --color-black: 0 0% 0%; /* #000000 */
+
+    /* ===== TYPOGRAPHY SYSTEM ===== */
+    /* Font Families */
+    --font-primary: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+    /* Font Sizes */
+    --font-size-xs: 1.2rem; /* 12px */
+    --font-size-sm: 1.4rem; /* 14px */
+    --font-size-base: 1.6rem; /* 16px */
+    --font-size-lg: 1.8rem; /* 18px */
+    --font-size-xl: 2rem; /* 20px */
+    --font-size-2xl: 2.4rem; /* 24px */
+
+    /* Line Heights */
+    --line-height-tight: 1.25;
+    --line-height-base: 1.5;
+    --line-height-relaxed: 1.625;
+
+    /* Font Weights */
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    /* ===== SPACING SYSTEM ===== */
+    --space-0: 0;
+    --space-1: 0.4rem; /* 4px */
+    --space-2: 0.8rem; /* 8px */
+    --space-3: 1.2rem; /* 12px */
+    --space-4: 1.6rem; /* 16px */
+    --space-5: 2rem; /* 20px */
+    --space-6: 2.4rem; /* 24px */
+    --space-8: 3.2rem; /* 32px */
+    --space-10: 4rem; /* 40px */
+    --space-12: 4.8rem; /* 48px */
+    --space-16: 6.4rem; /* 64px */
+    --space-20: 8rem; /* 80px */
+    --space-24: 9.6rem; /* 96px */
+
+    /* ===== COMPONENT TOKENS ===== */
+    /* Buttons */
+    --btn-padding-x: var(--space-4);
+    --btn-padding-y: var(--space-2);
+    --btn-padding-x-lg: var(--space-6);
+    --btn-padding-y-lg: var(--space-3);
+    --btn-radius: 5rem; /* 50px - pill shape */
+    --btn-font-size: var(--font-size-base);
+    --btn-font-weight: var(--font-weight-semibold);
+
+    /* Cards & Panels */
+    --card-radius: 1rem; /* 10px */
+    --card-radius-sm: 0.6rem; /* 6px */
+    --card-radius-xs: 0.4rem; /* 4px */
+    --card-padding: var(--space-4);
+    --card-padding-lg: var(--space-6);
+
+    /* Icons */
+    --icon-size-sm: 1.8rem; /* 18px */
+    --icon-size-base: 2rem; /* 20px */
+    --icon-size-md: 2.4rem; /* 24px */
+    --icon-size-lg: 3.2rem; /* 32px */
+    --icon-size-xl: 4rem; /* 40px */
+    --icon-size-2xl: 6.8rem; /* 68px */
+
+    /* Control Buttons */
+    --control-size: 6.8rem; /* 68px */
+    --control-radius: 50%;
+    --control-padding: 0.4rem; /* 4px */
+
+    /* Backdrop Effects */
+    --backdrop-blur-sm: 1rem; /* 10px */
+    --backdrop-blur-lg: 5rem; /* 50px */
+
+    /* Shadows */
+    --shadow-control: 0 0 0.8rem rgba(0, 0, 0, 0.25);
+    --shadow-button: 0 0 1.5rem rgba(255, 255, 255, 0.05);
+    --shadow-icon: 0 0 0.8rem rgba(0, 0, 0, 0.5);
+
+    /* ===== RESPONSIVE BREAKPOINTS ===== */
+    --breakpoint-sm: 30rem; /* 480px */
+    --breakpoint-md: 48rem; /* 768px */
+    --breakpoint-lg: 64rem; /* 1024px */
+    --breakpoint-xl: 80rem; /* 1280px */
+    --breakpoint-2xl: 96rem; /* 1536px */
+
+    /* ===== LAYOUT TOKENS ===== */
+    --container-max-width: 144rem; /* 1440px */
+    --sidebar-width: 40rem; /* 400px */
+
+    /* Legacy tokens for existing components */
+    --background: var(--color-white);
+    --foreground: var(--color-gray-950);
+    --primary: var(--color-gray-950);
+    --primary-foreground: var(--color-white);
+    --border: var(--color-gray-200);
+    --radius: var(--card-radius-sm);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-primary);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-base);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-tight);
+  }
+
+  button {
+    font-family: var(--font-primary);
+  }
+}
