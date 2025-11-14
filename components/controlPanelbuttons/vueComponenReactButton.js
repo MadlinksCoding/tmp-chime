@@ -8,7 +8,13 @@
         };
       },
       methods: {
-        handleClick() {
+        handleClick(e) {
+          // Stop event propagation to prevent triggering parent click handlers (like chat toggle)
+          if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+          
           console.log('[react-button] Clicked - showing quick emoji selector');
 
           const existingPopup = document.getElementById('quick-emoji-selector');
@@ -98,7 +104,7 @@
               isActive ? 'bg-white/75' : 'bg-white/10'
             ]" 
             aria-label="Toggle reaction"
-            @click="handleClick"
+            @click.stop="handleClick"
           >
             <img 
               src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/smile-emoji.svg" 
