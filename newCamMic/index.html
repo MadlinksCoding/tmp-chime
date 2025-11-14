@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CamMic Permissions Test</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .btn-primary {
+      background-color: #0d6efd;
+      border-color: #0d6efd;
+    }
+    .btn-primary:hover {
+      background-color: #0b5ed7;
+      border-color: #0a58ca;
+    }
+    .table {
+      background-color: #fff;
+    }
+    .table thead {
+      background-color: #f8f9fa;
+    }
+    .table tbody tr:hover {
+      background-color: #f8f9fa;
+    }
+    .alert-info {
+      background-color: #d1ecf1;
+      border-color: #0d6efd;
+      color: #0c5460;
+    }
+    .alert-info .alert-heading {
+      color: #0d6efd;
+    }
+    /* Fixed bottom status bar */
+    .fixed-bottom-status {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(to top, #ffffff 0%, #f8f9fa 100%);
+      border-top: 3px solid #0d6efd;
+      padding: 20px;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+      z-index: 1000;
+    }
+    .fixed-bottom-status .status-container {
+      display: flex;
+      align-items: center;
+      gap: 25px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .fixed-bottom-status .status-section {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 10px 15px;
+      background-color: #ffffff;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .fixed-bottom-status .status-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+    .fixed-bottom-status [data-cam-mic-element="status-item"] {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background-color: #ffffff;
+      border-radius: 6px;
+      font-size: 0.9em;
+    }
+    .fixed-bottom-status [data-cam-mic-element="status-camera"],
+    .fixed-bottom-status [data-cam-mic-element="status-microphone"] {
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .fixed-bottom-status [data-cam-mic-element="device-select"] {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background-color: #ffffff;
+      border-radius: 6px;
+    }
+    .fixed-bottom-status select {
+      min-width: 180px;
+      padding: 6px 10px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+    .fixed-bottom-status select:focus {
+      border-color: #0d6efd;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1);
+    }
+    .fixed-bottom-status label {
+      font-weight: 600;
+      font-size: 0.9em;
+      color: #495057;
+      margin: 0;
+    }
+    .fixed-bottom-status .video-preview-container {
+      max-width: 220px;
+      max-height: 165px;
+      border: 2px solid #0d6efd;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      background-color: #000;
+    }
+    .fixed-bottom-status video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .fixed-bottom-status [data-cam-mic-element="loader"],
+    .fixed-bottom-status [data-cam-mic-element="waiting"] {
+      padding: 8px 15px;
+      background-color: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 6px;
+      font-weight: 600;
+      color: #856404;
+    }
+    /* Add padding to body and container to prevent content from being hidden behind fixed footer */
+    body {
+      padding-bottom: 250px;
+    }
+    .container {
+      padding-bottom: 50px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container mt-4">
+    <h1 class="mb-4">CamMic Permissions Test</h1>
+    
+    <!-- Important Notice -->
+    <div class="alert alert-info mb-4" role="alert">
+      <h5 class="alert-heading">⚠️ Important Testing Instructions</h5>
+      <ul class="mb-0">
+        <li><strong>Always click "Initialize" first</strong> before testing any other actions</li>
+        <li><strong>Monitor console logs</strong> for detailed operation information and any issues</li>
+        <li>There is a <strong>container at the bottom</strong> that will automatically show the camera feed when preview is enabled</li>
+      </ul>
+    </div>
+    
+    <!-- CamMic Actions Documentation Table -->
+    <div class="mb-5">
+      <h2 class="mb-3">CamMic Actions Documentation</h2>
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 15%">Title</th>
+              <th style="width: 12%">Action</th>
+              <th style="width: 30%">Description</th>
+              <th style="width: 20%">Checklist</th>
+              <th style="width: 23%">How to Wire Up</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Initialize -->
+            <tr>
+              <td><strong>Initialize</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Initialize'); window.dispatchEvent(new CustomEvent('CamMic:Init'));">
+                  Initialize
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Dispatches initialization event that sets up the CamMicPermissionsHandler system, caches UI elements, and registers event listeners.<br><br>
+                <strong>Why:</strong> Required first step to initialize the handler and prepare the system for permission requests. Must be called before any other actions.<br><br>
+                <strong>Expected:</strong> Handler initializes, UI elements are cached, event listeners are registered. System is ready for permission operations.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Event dispatched successfully</li>
+                  <li>☐ Handler initialized</li>
+                  <li>☐ UI elements cached</li>
+                  <li>☐ Event listeners registered</li>
+                  <li>☐ System ready for operations</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  // Direct dispatch<br>
+                  window.dispatchEvent(new CustomEvent('CamMic:Init'));<br>
+                  <br>
+                  // Or from button click<br>
+                  button.onclick = () => {<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Init'));<br>
+                  };
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Check Permissions -->
+            <tr>
+              <td><strong>Check Permissions</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Check Permissions'); window.dispatchEvent(new CustomEvent('CamMic:Permissions:Check'));">
+                  Check
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Queries current permission states for camera and microphone without requesting permissions.<br><br>
+                <strong>Why:</strong> Allows checking permission status before making requests. Useful for determining if permissions are already granted or need to be requested.<br><br>
+                <strong>Expected:</strong> Permission states are checked and logged. Returns current state: "granted", "denied", or "prompt". No user prompt is shown.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Event dispatched successfully</li>
+                  <li>☐ Permission states queried</li>
+                  <li>☐ Camera permission state returned</li>
+                  <li>☐ Microphone permission state returned</li>
+                  <li>☐ No permission prompt shown</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  // Direct dispatch<br>
+                  window.dispatchEvent(new CustomEvent('CamMic:Permissions:Check'));<br>
+                  <br>
+                  // Or from button click<br>
+                  button.onclick = () => {<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Permissions:Check'));<br>
+                  };
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Watch Permissions -->
+            <tr>
+              <td><strong>Watch Permissions</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Watch Permissions'); window.dispatchEvent(new CustomEvent('CamMic:Permissions:WatchStart'));">
+                  Watch
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Starts monitoring permission state changes. Sets up listeners to detect when permissions are granted or denied.<br><br>
+                <strong>Why:</strong> Allows real-time detection of permission changes. Useful for updating UI when user grants/denies permissions in browser settings.<br><br>
+                <strong>Expected:</strong> Permission watching starts. System will detect and log permission changes. Events are fired when permissions change.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Event dispatched successfully</li>
+                  <li>☐ Permission watching started</li>
+                  <li>☐ Listeners registered for changes</li>
+                  <li>☐ Changes will be detected</li>
+                  <li>☐ Watching state is active</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  // Direct dispatch<br>
+                  window.dispatchEvent(new CustomEvent('CamMic:Permissions:WatchStart'));<br>
+                  <br>
+                  // Or from button click<br>
+                  button.onclick = () => {<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Permissions:WatchStart'));<br>
+                  };
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Stop Watching -->
+            <tr>
+              <td><strong>Stop Watching</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Stop Watching'); window.dispatchEvent(new CustomEvent('CamMic:Permissions:WatchStop'));">
+                  Stop
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Stops monitoring permission state changes. Removes listeners and cleans up watching functionality.<br><br>
+                <strong>Why:</strong> Stops permission watching when no longer needed. Helps conserve resources and clean up event listeners.<br><br>
+                <strong>Expected:</strong> Permission watching stops. Listeners are removed. System no longer detects permission changes.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Event dispatched successfully</li>
+                  <li>☐ Permission watching stopped</li>
+                  <li>☐ Listeners removed</li>
+                  <li>☐ Watching state is inactive</li>
+                  <li>☐ Resources cleaned up</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  // Direct dispatch<br>
+                  window.dispatchEvent(new CustomEvent('CamMic:Permissions:WatchStop'));<br>
+                  <br>
+                  // Or from button click<br>
+                  button.onclick = () => {<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Permissions:WatchStop'));<br>
+                  };
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Request Camera -->
+            <tr>
+              <td><strong>Request Camera</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Request Camera'); window.dispatchEvent(new CustomEvent('CamMic:Request:Camera'));">
+                  Request
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Requests camera permission from the user. Shows browser permission prompt if not already granted.<br><br>
+                <strong>Why:</strong> Directly requests camera access without orchestrating full device setup. Useful for simple permission requests.<br><br>
+                <strong>Expected:</strong> Browser permission prompt appears for camera. User grants/denies. Permission state is updated. No device selection or preview is started.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Event dispatched successfully</li>
+                  <li>☐ Permission prompt shown</li>
+                  <li>☐ User responds to prompt</li>
+                  <li>☐ Permission state updated</li>
+                  <li>☐ Camera permission granted or denied</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  // Direct dispatch<br>
+                  window.dispatchEvent(new CustomEvent('CamMic:Request:Camera'));<br>
+                  <br>
+                  // Or from button click<br>
+                  button.onclick = () => {<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Request:Camera'));<br>
+                  };
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Request Microphone -->
+            <tr>
+              <td><strong>Request Microphone</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Request Microphone'); window.dispatchEvent(new CustomEvent('CamMic:Request:Microphone'));">
+                  Request
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Requests microphone permission from the user. Shows browser permission prompt if not already granted.<br><br>
+                <strong>Why:</strong> Directly requests microphone access without orchestrating full device setup. Useful for simple permission requests.<br><br>
+                <strong>Expected:</strong> Browser permission prompt appears for microphone. User grants/denies. Permission state is updated. No device selection or streams are started.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Event dispatched successfully</li>
+                  <li>☐ Permission prompt shown</li>
+                  <li>☐ User responds to prompt</li>
+                  <li>☐ Permission state updated</li>
+                  <li>☐ Microphone permission granted or denied</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  // Direct dispatch<br>
+                  window.dispatchEvent(new CustomEvent('CamMic:Request:Microphone'));<br>
+                  <br>
+                  // Or from button click<br>
+                  button.onclick = () => {<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Request:Microphone'));<br>
+                  };
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Request Both -->
+            <tr>
+              <td><strong>Request Both</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Request Both'); window.dispatchEvent(new CustomEvent('CamMic:Request:Both'));">
+                  Request
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Requests both camera and microphone permissions from the user. Shows browser permission prompts if not already granted.<br><br>
+                <strong>Why:</strong> Directly requests both permissions without orchestrating full device setup. Useful for simple permission requests for both devices.<br><br>
+                <strong>Expected:</strong> Browser permission prompts appear for camera and microphone. User grants/denies. Permission states are updated. No device selection or streams are started.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Event dispatched successfully</li>
+                  <li>☐ Permission prompts shown</li>
+                  <li>☐ User responds to prompts</li>
+                  <li>☐ Permission states updated</li>
+                  <li>☐ Both camera and microphone permissions granted or denied</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  // Direct dispatch<br>
+                  window.dispatchEvent(new CustomEvent('CamMic:Request:Both'));<br>
+                  <br>
+                  // Or from button click<br>
+                  button.onclick = () => {<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Request:Both'));<br>
+                  };
+                </code>
+              </td>
+            </tr>
+            
+            <!-- List Devices -->
+            <tr>
+              <td><strong>List Devices</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] List Devices'); window.dispatchEvent(new CustomEvent('CamMic:Devices:List'));">
+                  List
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Queries and lists all available camera and microphone devices connected to the system.<br><br>
+                <strong>Why:</strong> Allows discovery of available devices. Useful for device selection UI or debugging device availability.<br><br>
+                <strong>Expected:</strong> Available devices are queried and logged. List includes device IDs, labels, and device information. Devices are available for selection.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Event dispatched successfully</li>
+                  <li>☐ Devices queried from system</li>
+                  <li>☐ Camera devices listed</li>
+                  <li>☐ Microphone devices listed</li>
+                  <li>☐ Device information logged</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  // Direct dispatch<br>
+                  window.dispatchEvent(new CustomEvent('CamMic:Devices:List'));<br>
+                  <br>
+                  // Or from button click<br>
+                  button.onclick = () => {<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Devices:List'));<br>
+                  };
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Stop Streams -->
+            <tr>
+              <td><strong>Stop Streams</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Stop Streams'); window.dispatchEvent(new CustomEvent('CamMic:Streams:Stop'));">
+                  Stop
+    </button>
+              </td>
+              <td>
+                <div style="background-color: #d1ecf1; border: 1px solid #0d6efd; border-radius: 4px; padding: 8px; margin-bottom: 10px; color: #0c5460;">
+                  <strong style="color: #0d6efd;">⚠️ Note:</strong> This action will only stop streams if there are active streams running. If no streams are active, this action will have no effect.
+                </div>
+                <strong>How:</strong> Stops all active camera and microphone media streams. Releases device access and cleans up resources.<br><br>
+                <strong>Why:</strong> Properly releases device access when streams are no longer needed. Important for resource management and user privacy.<br><br>
+                <strong>Expected:</strong> All active streams are stopped. Device tracks are stopped. Streams are released. Resources are cleaned up.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Event dispatched successfully</li>
+                  <li>☐ All active streams stopped</li>
+                  <li>☐ Camera tracks stopped</li>
+                  <li>☐ Microphone tracks stopped</li>
+                  <li>☐ Resources cleaned up</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  // Direct dispatch<br>
+                  window.dispatchEvent(new CustomEvent('CamMic:Streams:Stop'));<br>
+                  <br>
+                  // Or from button click<br>
+                  button.onclick = () => {<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Streams:Stop'));<br>
+                  };
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Start Video Preview -->
+            <tr>
+              <td><strong>Start Video Preview</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Start Video Preview'); window.dispatchEvent(new CustomEvent('CamMic:Preview:Start'));">
+                  Start
+    </button>
+              </td>
+              <td>
+                <div style="background-color: #d1ecf1; border: 1px solid #0d6efd; border-radius: 4px; padding: 8px; margin-bottom: 10px; color: #0c5460;">
+                  <strong style="color: #0d6efd;">⚠️ Note:</strong> This action requires camera permissions to be granted first. If permissions are not granted, this action will fail. Use "Request Camera" or "Orchestrate Camera Only" first to obtain permissions.
+                </div>
+                <strong>How:</strong> Starts video preview by accessing camera and displaying feed in the video preview element.<br><br>
+                <strong>Why:</strong> Allows starting video preview independently of orchestration. Useful for manual preview control or when permissions are already granted.<br><br>
+                <strong>Expected:</strong> Video preview starts. Camera stream is accessed. Video element displays live camera feed. Preview is visible.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Event dispatched successfully</li>
+                  <li>☐ Camera stream accessed</li>
+                  <li>☐ Video element updated</li>
+                  <li>☐ Preview feed displayed</li>
+                  <li>☐ Preview is active</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  // Direct dispatch<br>
+                  window.dispatchEvent(new CustomEvent('CamMic:Preview:Start'));<br>
+                  <br>
+                  // Or from button click<br>
+                  button.onclick = () => {<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Preview:Start'));<br>
+                  };
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Orchestrate Both -->
+            <tr>
+              <td><strong>Orchestrate Both</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Orchestrate Both'); window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Both'));">
+                  Orchestrate
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Full orchestration flow: requests permissions, selects devices, starts streams, and enables video preview for both camera and microphone.<br><br>
+                <strong>Why:</strong> Complete automated setup for video calls. Handles the entire workflow from permissions to active streams with preview.<br><br>
+                <strong>Expected:</strong> Permissions requested, devices selected, streams started, video preview enabled. Completion event fired when done.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Event dispatched successfully</li>
+                  <li>☐ Permissions requested</li>
+                  <li>☐ Devices selected</li>
+                  <li>☐ Streams started</li>
+                  <li>☐ Video preview enabled</li>
+                  <li>☐ Completion event fired</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  // Direct dispatch<br>
+                  window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Both'));<br>
+                  <br>
+                  // Or from button click<br>
+                  button.onclick = () => {<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Both'));<br>
+                  };
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Orchestrate Both (No Preview) -->
+            <tr>
+              <td><strong>Orchestrate Both (No Preview)</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Orchestrate Both (No Preview)'); window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Both:NoPreview'));">
+                  Orchestrate
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Full orchestration flow without video preview: requests permissions, selects devices, starts streams, but does not enable video preview.<br><br>
+                <strong>Why:</strong> Complete setup for audio-only calls or when preview should be manually controlled. Useful when video preview isn't needed immediately.<br><br>
+                <strong>Expected:</strong> Permissions requested, devices selected, streams started, but video preview NOT enabled. Completion event fired when done.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Event dispatched successfully</li>
+                  <li>☐ Permissions requested</li>
+                  <li>☐ Devices selected</li>
+                  <li>☐ Streams started</li>
+                  <li>☐ Video preview NOT enabled</li>
+                  <li>☐ Completion event fired</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  // Direct dispatch<br>
+                  window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Both:NoPreview'));<br>
+                  <br>
+                  // Or from button click<br>
+                  button.onclick = () => {<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Both:NoPreview'));<br>
+                  };
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Orchestrate Mic Only -->
+            <tr>
+              <td><strong>Orchestrate Mic Only</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Orchestrate Mic Only'); window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Microphone'));">
+                  Orchestrate
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Full orchestration flow for microphone only: requests microphone permission, selects microphone device, starts audio stream.<br><br>
+                <strong>Why:</strong> Complete automated setup for audio-only calls. Handles the entire workflow from permissions to active microphone stream.<br><br>
+                <strong>Expected:</strong> Microphone permission requested, device selected, audio stream started. Completion event fired when done. No camera access.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Event dispatched successfully</li>
+                  <li>☐ Microphone permission requested</li>
+                  <li>☐ Microphone device selected</li>
+                  <li>☐ Audio stream started</li>
+                  <li>☐ No camera access</li>
+                  <li>☐ Completion event fired</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  // Direct dispatch<br>
+                  window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Microphone'));<br>
+                  <br>
+                  // Or from button click<br>
+                  button.onclick = () => {<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Microphone'));<br>
+                  };
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Orchestrate Camera Only -->
+            <tr>
+              <td><strong>Orchestrate Camera Only</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Orchestrate Camera Only'); window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Camera'));">
+                  Orchestrate
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Full orchestration flow for camera only: requests camera permission, selects camera device, starts video stream, enables preview.<br><br>
+                <strong>Why:</strong> Complete automated setup for video-only scenarios. Handles the entire workflow from permissions to active camera stream with preview.<br><br>
+                <strong>Expected:</strong> Camera permission requested, device selected, video stream started, preview enabled. Completion event fired when done. No microphone access.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Event dispatched successfully</li>
+                  <li>☐ Camera permission requested</li>
+                  <li>☐ Camera device selected</li>
+                  <li>☐ Video stream started</li>
+                  <li>☐ Video preview enabled</li>
+                  <li>☐ No microphone access</li>
+                  <li>☐ Completion event fired</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  // Direct dispatch<br>
+                  window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Camera'));<br>
+                  <br>
+                  // Or from button click<br>
+                  button.onclick = () => {<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Camera'));<br>
+                  };
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Orchestrate Camera Only (No Preview) -->
+            <tr>
+              <td><strong>Orchestrate Camera Only (No Preview)</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Orchestrate Camera Only (No Preview)'); window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Camera:NoPreview'));">
+                  Orchestrate
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Full orchestration flow for camera only without preview: requests camera permission, selects device, starts stream, but does not enable preview.<br><br>
+                <strong>Why:</strong> Complete setup for camera access without automatic preview. Useful for photo capture or when preview should be manually controlled.<br><br>
+                <strong>Expected:</strong> Camera permission requested, device selected, video stream started, but preview NOT enabled. Completion event fired when done.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Event dispatched successfully</li>
+                  <li>☐ Camera permission requested</li>
+                  <li>☐ Camera device selected</li>
+                  <li>☐ Video stream started</li>
+                  <li>☐ Video preview NOT enabled</li>
+                  <li>☐ Completion event fired</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  // Direct dispatch<br>
+                  window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Camera:NoPreview'));<br>
+                  <br>
+                  // Or from button click<br>
+                  button.onclick = () => {<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Camera:NoPreview'));<br>
+                  };
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Get Device List -->
+            <tr>
+              <td><strong>Get Device List</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Get Device List'); window.dispatchEvent(new CustomEvent('CamMic:DeviceList:Check'));">
+                  Get List
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Retrieves and displays the current list of available camera and microphone devices with their current selections.<br><br>
+                <strong>Why:</strong> Shows current device state including which devices are available and which are currently selected. Useful for debugging and UI updates.<br><br>
+                <strong>Expected:</strong> Device list is retrieved and logged. Shows available devices, selected devices, and device information. UI may be updated with device selections.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Event dispatched successfully</li>
+                  <li>☐ Device list retrieved</li>
+                  <li>☐ Available devices listed</li>
+                  <li>☐ Selected devices shown</li>
+                  <li>☐ Device information logged</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  // Direct dispatch<br>
+                  window.dispatchEvent(new CustomEvent('CamMic:DeviceList:Check'));<br>
+                  <br>
+                  // Or from button click<br>
+                  button.onclick = () => {<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:DeviceList:Check'));<br>
+                  };
+                </code>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Test Wait Flows Documentation Table -->
+    <div class="mb-5">
+      <h2 class="mb-3">Test Wait Flows Documentation</h2>
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 15%">Title</th>
+              <th style="width: 12%">Action</th>
+              <th style="width: 30%">Description</th>
+              <th style="width: 20%">Checklist</th>
+              <th style="width: 23%">How to Wire Up</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Test Wait Flow: Both -->
+            <tr>
+              <td><strong>Both (Cam + Mic)</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Test Wait Flow - Both'); window.dispatchEvent(new CustomEvent('CamMic:Test:WaitFlow:Both'));">
+                  Test Flow
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Listens for test trigger, registers completion listener, dispatches orchestration event, waits for completion.<br><br>
+                <strong>Why:</strong> Verifies async orchestration pattern works correctly with multiple event dispatches. Ensures completion is captured before proceeding.<br><br>
+                <strong>Expected:</strong> Console logs show Start → Dispatch → Complete → SUCCESS (if permissions granted) or FAILED (if denied). Completion event contains mode: "both", success: boolean, permissions object.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Completion listener registered before dispatch</li>
+                  <li>☐ Orchestration event dispatched correctly</li>
+                  <li>☐ Completion event received with detail.success</li>
+                  <li>☐ Mode matches "both"</li>
+                  <li>☐ Permissions object contains camera and microphone states</li>
+                  <li>☐ Listener cleaned up after completion</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  window.addEventListener('CamMic:Test:WaitFlow:Both', function() {<br>
+                  &nbsp;&nbsp;const onComplete = (ev) => {<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;window.removeEventListener('CamMic:Orchestrate:Complete', onComplete);<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;const detail = ev.detail || {};<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;// Handle success/failure<br>
+                  &nbsp;&nbsp;};<br>
+                  &nbsp;&nbsp;window.addEventListener('CamMic:Orchestrate:Complete', onComplete);<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Both'));<br>
+                  });<br>
+                  <br>
+                  // Trigger: window.dispatchEvent(new CustomEvent('CamMic:Test:WaitFlow:Both'));
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Test Wait Flow: Microphone Only -->
+            <tr>
+              <td><strong>Microphone Only</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Test Wait Flow - Mic Only'); window.dispatchEvent(new CustomEvent('CamMic:Test:WaitFlow:Microphone'));">
+                  Test Flow
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Same pattern as Both, but for microphone-only requests. Registers listener, dispatches microphone orchestration, waits for completion.<br><br>
+                <strong>Why:</strong> Verifies microphone-only flows work independently. Tests that single-permission requests complete correctly without camera involvement.<br><br>
+                <strong>Expected:</strong> Console logs show Start → Dispatch → Complete → SUCCESS (if mic granted) or FAILED. Completion event contains mode: "microphone", success: boolean, permissions object with microphone state.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Completion listener registered before dispatch</li>
+                  <li>☐ Microphone orchestration event dispatched</li>
+                  <li>☐ Completion event received with detail.success</li>
+                  <li>☐ Mode matches "microphone"</li>
+                  <li>☐ Only microphone permission checked (not camera)</li>
+                  <li>☐ Listener cleaned up after completion</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  window.addEventListener('CamMic:Test:WaitFlow:Microphone', function() {<br>
+                  &nbsp;&nbsp;const onComplete = (ev) => {<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;window.removeEventListener('CamMic:Orchestrate:Complete', onComplete);<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;const detail = ev.detail || {};<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;// Handle success/failure<br>
+                  &nbsp;&nbsp;};<br>
+                  &nbsp;&nbsp;window.addEventListener('CamMic:Orchestrate:Complete', onComplete);<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Microphone'));<br>
+                  });<br>
+                  <br>
+                  // Trigger: window.dispatchEvent(new CustomEvent('CamMic:Test:WaitFlow:Microphone'));
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Test Wait Flow: Camera Only -->
+            <tr>
+              <td><strong>Camera Only</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Test Wait Flow - Camera Only'); window.dispatchEvent(new CustomEvent('CamMic:Test:WaitFlow:Camera'));">
+                  Test Flow
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Same pattern, but for camera-only requests with video preview enabled. Registers listener, dispatches camera orchestration, waits for completion.<br><br>
+                <strong>Why:</strong> Verifies camera-only flows work independently with preview enabled. Tests permission requests and video preview activation together.<br><br>
+                <strong>Expected:</strong> Console logs show Start → Dispatch → Complete → SUCCESS (if camera granted) or FAILED. Completion event contains mode: "camera", success: boolean, previewEnabled: true, permissions object.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Completion listener registered before dispatch</li>
+                  <li>☐ Camera orchestration event dispatched</li>
+                  <li>☐ Completion event received with detail.success</li>
+                  <li>☐ Mode matches "camera"</li>
+                  <li>☐ Video preview enabled (previewEnabled: true)</li>
+                  <li>☐ Only camera permission checked (not microphone)</li>
+                  <li>☐ Listener cleaned up after completion</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  window.addEventListener('CamMic:Test:WaitFlow:Camera', function() {<br>
+                  &nbsp;&nbsp;const onComplete = (ev) => {<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;window.removeEventListener('CamMic:Orchestrate:Complete', onComplete);<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;const detail = ev.detail || {};<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;// Handle success/failure<br>
+                  &nbsp;&nbsp;};<br>
+                  &nbsp;&nbsp;window.addEventListener('CamMic:Orchestrate:Complete', onComplete);<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Camera'));<br>
+                  });<br>
+                  <br>
+                  // Trigger: window.dispatchEvent(new CustomEvent('CamMic:Test:WaitFlow:Camera'));
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Test Wait Flow: Both (No Preview) -->
+            <tr>
+              <td><strong>Both (No Preview)</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Test Wait Flow - Both (No Preview)'); window.dispatchEvent(new CustomEvent('CamMic:Test:WaitFlow:Both:NoPreview'));">
+                  Test Flow
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Same pattern as Both, but with no preview flag. Requests both permissions without starting video preview automatically.<br><br>
+                <strong>Why:</strong> Verifies permissions can be requested without automatic video preview. Useful for audio-only calls or when preview should be manually controlled.<br><br>
+                <strong>Expected:</strong> Console logs show Start → Dispatch → Complete → SUCCESS (if permissions granted) or FAILED. Completion event contains mode: "both", success: boolean, previewEnabled: false, permissions object.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Completion listener registered before dispatch</li>
+                  <li>☐ Both orchestration event dispatched with NoPreview flag</li>
+                  <li>☐ Completion event received with detail.success</li>
+                  <li>☐ Mode matches "both"</li>
+                  <li>☐ Preview disabled (previewEnabled: false)</li>
+                  <li>☐ Both camera and microphone permissions checked</li>
+                  <li>☐ Video preview not started automatically</li>
+                  <li>☐ Listener cleaned up after completion</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  window.addEventListener('CamMic:Test:WaitFlow:Both:NoPreview', function() {<br>
+                  &nbsp;&nbsp;const onComplete = (ev) => {<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;window.removeEventListener('CamMic:Orchestrate:Complete', onComplete);<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;const detail = ev.detail || {};<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;if (detail.success && detail.previewEnabled === false) {<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Handle success without preview<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                  &nbsp;&nbsp;};<br>
+                  &nbsp;&nbsp;window.addEventListener('CamMic:Orchestrate:Complete', onComplete);<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Both:NoPreview'));<br>
+                  });<br>
+                  <br>
+                  // Trigger: window.dispatchEvent(new CustomEvent('CamMic:Test:WaitFlow:Both:NoPreview'));
+                </code>
+              </td>
+            </tr>
+            
+            <!-- Test Wait Flow: Camera Only (No Preview) -->
+            <tr>
+              <td><strong>Camera Only (No Preview)</strong></td>
+              <td>
+                <button class="btn btn-primary btn-sm" onclick="console.log('[HTML] [onclick] Test Wait Flow - Camera Only (No Preview)'); window.dispatchEvent(new CustomEvent('CamMic:Test:WaitFlow:Camera:NoPreview'));">
+                  Test Flow
+    </button>
+              </td>
+              <td>
+                <strong>How:</strong> Same pattern as Camera Only, but with no preview flag. Requests camera permission without starting video preview automatically.<br><br>
+                <strong>Why:</strong> Verifies camera permissions can be requested without automatic preview. Useful when preview should be manually controlled or for photo capture scenarios without live preview.<br><br>
+                <strong>Expected:</strong> Console logs show Start → Dispatch → Complete → SUCCESS (if camera granted) or FAILED. Completion event contains mode: "camera", success: boolean, previewEnabled: false, permissions object.
+              </td>
+              <td>
+                <ul class="list-unstyled mb-0">
+                  <li>☐ Completion listener registered before dispatch</li>
+                  <li>☐ Camera orchestration event dispatched with NoPreview flag</li>
+                  <li>☐ Completion event received with detail.success</li>
+                  <li>☐ Mode matches "camera"</li>
+                  <li>☐ Preview disabled (previewEnabled: false)</li>
+                  <li>☐ Only camera permission checked (not microphone)</li>
+                  <li>☐ Video preview not started automatically</li>
+                  <li>☐ Listener cleaned up after completion</li>
+                </ul>
+              </td>
+              <td>
+                <code class="small">
+                  window.addEventListener('CamMic:Test:WaitFlow:Camera:NoPreview', function() {<br>
+                  &nbsp;&nbsp;const onComplete = (ev) => {<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;window.removeEventListener('CamMic:Orchestrate:Complete', onComplete);<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;const detail = ev.detail || {};<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;if (detail.success && detail.previewEnabled === false) {<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Handle success without preview<br>
+                  &nbsp;&nbsp;&nbsp;&nbsp;}<br>
+                  &nbsp;&nbsp;};<br>
+                  &nbsp;&nbsp;window.addEventListener('CamMic:Orchestrate:Complete', onComplete);<br>
+                  &nbsp;&nbsp;window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Camera:NoPreview'));<br>
+                  });<br>
+                  <br>
+                  // Trigger: window.dispatchEvent(new CustomEvent('CamMic:Test:WaitFlow:Camera:NoPreview'));
+                </code>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+  </div>
+
+  <!-- Required DOM Elements -->
+  <div style="margin: 20px 0;">
+    <h2>Status & Controls</h2>
+
+    <!-- Permission Prompt Icons -->
+    <div data-cam-mic-element="permission-icons" hidden>
+      <div data-cam-mic-element="need-camera" hidden>📷 Please allow camera access</div>
+      <div data-cam-mic-element="need-microphone" hidden>🎤 Please allow microphone access</div>
+    </div>
+
+    <!-- Second Set of Device Selects (Demo Multiple Selects) -->
+    <div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;">
+      <h3>Second Device Selection (Multiple Selects Demo)</h3>
+      <p class="text-muted small">This demonstrates that multiple select elements can be wired up and stay synchronized automatically.</p>
+      <label>
+        Camera:
+        <select data-camera-select></select>
+      </label>
+      <br /><br />
+      <label>
+        Microphone:
+        <select data-microphone-select></select>
+      </label>
+    </div>
+
+    <!-- Reload Required Banner -->
+    <div data-cam-mic-element="reload-required" hidden style="background: #ffcccc; padding: 10px; border: 1px solid #ff0000;">
+      ⚠️ Permission denied. Page will reload shortly.
+    </div>
+  </div>
+
+  <!-- Fixed Bottom Status Bar -->
+  <div class="fixed-bottom-status">
+    <div class="status-container">
+      <!-- Loader (moved from Status & Controls) -->
+      <div data-cam-mic-element="loader" hidden>🔄 Checking Permissions...</div>
+      
+      <!-- Waiting (moved from Status & Controls) -->
+      <div data-cam-mic-element="waiting" hidden>⏳ Waiting...</div>
+      
+      <!-- Status Wrap (moved from Status & Controls) -->
+      <div class="status-section" data-cam-mic-element="status">
+        <div data-cam-mic-element="status-item" data-kind="camera">
+          <strong>Camera:</strong> <span data-cam-mic-element="status-camera"></span>
+        </div>
+        <div data-cam-mic-element="status-item" data-kind="microphone">
+          <strong>Microphone:</strong> <span data-cam-mic-element="status-microphone"></span>
+        </div>
+      </div>
+      
+      <!-- Device Selection (moved from Status & Controls) -->
+      <div class="status-section" data-cam-mic-element="device-select">
+        <label>Camera:</label>
+        <select data-cam-mic-element="video-select"></select>
+        <span data-cam-mic-element="selected-camera-label" style="font-size: 0.85em; color: #6c757d;"></span>
+        <label style="margin-left: 10px;">Mic:</label>
+        <select data-cam-mic-element="audio-select"></select>
+        <span data-cam-mic-element="selected-microphone-label" style="font-size: 0.85em; color: #6c757d;"></span>
+      </div>
+      
+      <!-- Video Preview (moved from Status & Controls) -->
+      <div class="video-preview-container">
+        <video data-cam-mic-element="video-preview" autoplay playsinline></video>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer with selects (hidden - source of truth, created automatically if missing) -->
+  <footer style="margin-top: 40px; padding: 20px; border-top: 1px solid #ccc; display: none;" hidden>
+    <label>
+      Camera:
+      <select data-camera-select hidden></select>
+    </label>
+    <br />
+    <label>
+      Microphone:
+      <select data-microphone-select hidden></select>
+    </label>
+  </footer>
+
+  <!-- Load Cam/Mic handler (contains both Utility and Handler) -->
+  <script src="./camMicPermissionsUtility.js"></script>
+  <script src="./camMicPermissionsHandler.js"></script>
+  
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+
+
+
+
+
+ 
+  <!-- Footer selects are managed by CamMicPermissionsHandler._ensureFooterSelects() -->
+  <!-- They are hidden and serve as source of truth -->
+
+  <!-- Test Wait Flow: External flow that waits for orchestration completion -->
+  <script>
+    (function() {
+      /**
+       * Test Wait Flow for Both (Cam + Mic)
+       * 
+       * This flow demonstrates the async orchestration pattern where we:
+       * 1. Listen for the test wait flow event trigger
+       * 2. Set up a completion listener BEFORE dispatching the orchestration
+       * 3. Dispatch the orchestration event
+       * 4. Wait for the completion event to verify successful permission handling
+       * 
+       * This pattern ensures we can verify that multiple event dispatches work correctly
+       * and that the orchestration completes before proceeding.
+       */
+      window.addEventListener('CamMic:Test:WaitFlow:Both', function() {
+        // Log the start of the test wait flow
+        console.log(`[TestWaitFlow] [Both] [Start] {}`);
+        
+        // Define completion handler that will be called when orchestration finishes
+        // This handler is registered BEFORE dispatching the orchestration event
+        // to ensure it can capture the completion event
+        const onComplete = function(ev) {
+          // Remove the event listener to prevent memory leaks
+          // This cleanup happens after the completion event is received
+          window.removeEventListener('CamMic:Orchestrate:Complete', onComplete);
+          // Extract detail object from event, defaulting to empty object if missing
+          const detail = ev.detail || {};
+          // Log the completion event with all details
+          console.log(`[TestWaitFlow] [Both] [Complete] ${JSON.stringify(detail)}`);
+          
+          // Check if orchestration was successful and mode matches expected value
+          // Success indicates both camera and microphone permissions were granted
+          if (detail.success && detail.mode === 'both') {
+            // Log success message confirming permissions were granted
+            // This confirms the wait flow pattern works correctly with multiple dispatches
+            console.log(`[TestWaitFlow] [Both] [SUCCESS] Cam/Mic permissions granted! I waited until AFTER cam mic so we can be sure. Multiple dispatches work correctly.`);
+          } else {
+            // Log warning if orchestration failed or mode doesn't match
+            // This helps identify issues with permission requests or mode detection
+            console.warn(`[TestWaitFlow] [Both] [FAILED] ${JSON.stringify({ permissions: detail.permissions || {} })}`);
+          }
+        };
+        
+        // Register the completion handler to listen for orchestration completion
+        // This must be done BEFORE dispatching the orchestration event
+        window.addEventListener('CamMic:Orchestrate:Complete', onComplete);
+        
+        // Dispatch the orchestration event to start the camera + microphone flow
+        // This triggers the CamMicPermissionsHandler to request permissions and set up devices
+        console.log(`[TestWaitFlow] [Both] [Dispatch] ${JSON.stringify({ event: 'CamMic:Orchestrate:Both' })}`);
+        window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Both'));
+      });
+
+      /**
+       * Test Wait Flow for Microphone Only
+       * 
+       * This flow demonstrates the async orchestration pattern for microphone-only requests.
+       * The flow:
+       * 1. Listens for the test wait flow event trigger
+       * 2. Sets up a completion listener BEFORE dispatching the orchestration
+       * 3. Dispatches the microphone-only orchestration event
+       * 4. Waits for the completion event to verify successful microphone permission handling
+       * 
+       * This pattern ensures we can verify microphone-only flows work independently
+       * and that the orchestration completes before proceeding.
+       */
+      window.addEventListener('CamMic:Test:WaitFlow:Microphone', function() {
+        // Log the start of the test wait flow
+        console.log(`[TestWaitFlow] [Microphone] [Start] {}`);
+        
+        // Define completion handler that will be called when orchestration finishes
+        // This handler is registered BEFORE dispatching the orchestration event
+        // to ensure it can capture the completion event
+        const onComplete = function(ev) {
+          // Remove the event listener to prevent memory leaks
+          // This cleanup happens after the completion event is received
+          window.removeEventListener('CamMic:Orchestrate:Complete', onComplete);
+          // Extract detail object from event, defaulting to empty object if missing
+          const detail = ev.detail || {};
+          // Log the completion event with all details
+          console.log(`[TestWaitFlow] [Microphone] [Complete] ${JSON.stringify(detail)}`);
+          
+          // Check if orchestration was successful and mode matches expected value
+          // Success indicates microphone permissions were granted
+          if (detail.success && detail.mode === 'microphone') {
+            // Log success message confirming permissions were granted
+            // This confirms the wait flow pattern works correctly with multiple dispatches
+            console.log(`[TestWaitFlow] [Microphone] [SUCCESS] Mic permissions granted! I waited until AFTER cam mic so we can be sure. Multiple dispatches work correctly.`);
+          } else {
+            // Log warning if orchestration failed or mode doesn't match
+            // This helps identify issues with permission requests or mode detection
+            console.warn(`[TestWaitFlow] [Microphone] [FAILED] ${JSON.stringify({ permissions: detail.permissions || {} })}`);
+          }
+        };
+        
+        // Register the completion handler to listen for orchestration completion
+        // This must be done BEFORE dispatching the orchestration event
+        window.addEventListener('CamMic:Orchestrate:Complete', onComplete);
+        
+        // Dispatch the orchestration event to start the microphone-only flow
+        // This triggers the CamMicPermissionsHandler to request microphone permissions and set up devices
+        console.log(`[TestWaitFlow] [Microphone] [Dispatch] ${JSON.stringify({ event: 'CamMic:Orchestrate:Microphone' })}`);
+        window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Microphone'));
+      });
+
+      /**
+       * Test Wait Flow for Camera Only
+       * 
+       * This flow demonstrates the async orchestration pattern for camera-only requests.
+       * The flow:
+       * 1. Listens for the test wait flow event trigger
+       * 2. Sets up a completion listener BEFORE dispatching the orchestration
+       * 3. Dispatches the camera-only orchestration event
+       * 4. Waits for the completion event to verify successful camera permission handling
+       * 
+       * This pattern ensures we can verify camera-only flows work independently
+       * and that the orchestration completes before proceeding.
+       */
+      window.addEventListener('CamMic:Test:WaitFlow:Camera', function() {
+        // Log the start of the test wait flow
+        console.log(`[TestWaitFlow] [Camera] [Start] {}`);
+        
+        // Define completion handler that will be called when orchestration finishes
+        // This handler is registered BEFORE dispatching the orchestration event
+        // to ensure it can capture the completion event
+        const onComplete = function(ev) {
+          // Remove the event listener to prevent memory leaks
+          // This cleanup happens after the completion event is received
+          window.removeEventListener('CamMic:Orchestrate:Complete', onComplete);
+          // Extract detail object from event, defaulting to empty object if missing
+          const detail = ev.detail || {};
+          // Log the completion event with all details
+          console.log(`[TestWaitFlow] [Camera] [Complete] ${JSON.stringify(detail)}`);
+          
+          // Check if orchestration was successful and mode matches expected value
+          // Success indicates camera permissions were granted
+          if (detail.success && detail.mode === 'camera') {
+            // Log success message confirming permissions were granted
+            // This confirms the wait flow pattern works correctly with multiple dispatches
+            console.log(`[TestWaitFlow] [Camera] [SUCCESS] Camera permissions granted! I waited until AFTER cam mic so we can be sure. Multiple dispatches work correctly.`);
+          } else {
+            // Log warning if orchestration failed or mode doesn't match
+            // This helps identify issues with permission requests or mode detection
+            console.warn(`[TestWaitFlow] [Camera] [FAILED] ${JSON.stringify({ permissions: detail.permissions || {} })}`);
+          }
+        };
+        
+        // Register the completion handler to listen for orchestration completion
+        // This must be done BEFORE dispatching the orchestration event
+        window.addEventListener('CamMic:Orchestrate:Complete', onComplete);
+        
+        // Dispatch the orchestration event to start the camera-only flow
+        // This triggers the CamMicPermissionsHandler to request camera permissions and set up devices
+        console.log(`[TestWaitFlow] [Camera] [Dispatch] ${JSON.stringify({ event: 'CamMic:Orchestrate:Camera' })}`);
+        window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Camera'));
+      });
+
+      /**
+       * Test Wait Flow for Both (Cam + Mic) - No Preview
+       * 
+       * This flow demonstrates the async orchestration pattern for both camera and microphone
+       * requests without enabling video preview. The flow:
+       * 1. Listens for the test wait flow event trigger
+       * 2. Sets up a completion listener BEFORE dispatching the orchestration
+       * 3. Dispatches the both orchestration event with no preview flag
+       * 4. Waits for the completion event to verify successful permission handling without preview
+       * 
+       * This pattern ensures we can verify that permissions can be requested without
+       * automatically starting video preview, which is useful for audio-only calls or
+       * when preview should be manually controlled.
+       */
+      window.addEventListener('CamMic:Test:WaitFlow:Both:NoPreview', function() {
+        // Log the start of the test wait flow
+        console.log(`[TestWaitFlow] [Both:NoPreview] [Start] {}`);
+        
+        // Define completion handler that will be called when orchestration finishes
+        // This handler is registered BEFORE dispatching the orchestration event
+        // to ensure it can capture the completion event
+        const onComplete = function(ev) {
+          // Remove the event listener to prevent memory leaks
+          // This cleanup happens after the completion event is received
+          window.removeEventListener('CamMic:Orchestrate:Complete', onComplete);
+          // Extract detail object from event, defaulting to empty object if missing
+          const detail = ev.detail || {};
+          // Log the completion event with all details
+          console.log(`[TestWaitFlow] [Both:NoPreview] [Complete] ${JSON.stringify(detail)}`);
+          
+          // Check if orchestration was successful, mode matches expected value, and preview is disabled
+          // Success indicates both camera and microphone permissions were granted without preview
+          if (detail.success && detail.mode === 'both' && detail.previewEnabled === false) {
+            // Log success message confirming permissions were granted and preview is disabled
+            // This confirms the wait flow pattern works correctly with no preview mode
+            console.log(`[TestWaitFlow] [Both:NoPreview] [SUCCESS] Cam/Mic permissions granted! Preview disabled. I waited until AFTER cam mic so we can be sure. Multiple dispatches work correctly.`);
+          } else {
+            // Log warning if orchestration failed, mode doesn't match, or preview is enabled
+            // This helps identify issues with permission requests, mode detection, or preview control
+            console.warn(`[TestWaitFlow] [Both:NoPreview] [FAILED] ${JSON.stringify({ permissions: detail.permissions || {}, previewEnabled: detail.previewEnabled })}`);
+          }
+        };
+        
+        // Register the completion handler to listen for orchestration completion
+        // This must be done BEFORE dispatching the orchestration event
+        window.addEventListener('CamMic:Orchestrate:Complete', onComplete);
+        
+        // Dispatch the orchestration event to start the camera + microphone flow without preview
+        // This triggers the CamMicPermissionsHandler to request permissions and set up devices
+        // without automatically enabling video preview
+        console.log(`[TestWaitFlow] [Both:NoPreview] [Dispatch] ${JSON.stringify({ event: 'CamMic:Orchestrate:Both:NoPreview' })}`);
+        window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Both:NoPreview'));
+      });
+
+      /**
+       * Test Wait Flow for Camera Only - No Preview
+       * 
+       * This flow demonstrates the async orchestration pattern for camera-only requests
+       * without enabling video preview. The flow:
+       * 1. Listens for the test wait flow event trigger
+       * 2. Sets up a completion listener BEFORE dispatching the orchestration
+       * 3. Dispatches the camera-only orchestration event with no preview flag
+       * 4. Waits for the completion event to verify successful camera permission handling without preview
+       * 
+       * This pattern ensures we can verify that camera permissions can be requested without
+       * automatically starting video preview, which is useful when preview should be manually controlled
+       * or when camera is needed for other purposes (like photo capture) without live preview.
+       */
+      window.addEventListener('CamMic:Test:WaitFlow:Camera:NoPreview', function() {
+        // Log the start of the test wait flow
+        console.log(`[TestWaitFlow] [Camera:NoPreview] [Start] {}`);
+        
+        // Define completion handler that will be called when orchestration finishes
+        // This handler is registered BEFORE dispatching the orchestration event
+        // to ensure it can capture the completion event
+        const onComplete = function(ev) {
+          // Remove the event listener to prevent memory leaks
+          // This cleanup happens after the completion event is received
+          window.removeEventListener('CamMic:Orchestrate:Complete', onComplete);
+          // Extract detail object from event, defaulting to empty object if missing
+          const detail = ev.detail || {};
+          // Log the completion event with all details
+          console.log(`[TestWaitFlow] [Camera:NoPreview] [Complete] ${JSON.stringify(detail)}`);
+          
+          // Check if orchestration was successful, mode matches expected value, and preview is disabled
+          // Success indicates camera permissions were granted without preview
+          if (detail.success && detail.mode === 'camera' && detail.previewEnabled === false) {
+            // Log success message confirming permissions were granted and preview is disabled
+            // This confirms the wait flow pattern works correctly with no preview mode
+            console.log(`[TestWaitFlow] [Camera:NoPreview] [SUCCESS] Camera permissions granted! Preview disabled. I waited until AFTER cam mic so we can be sure. Multiple dispatches work correctly.`);
+          } else {
+            // Log warning if orchestration failed, mode doesn't match, or preview is enabled
+            // This helps identify issues with permission requests, mode detection, or preview control
+            console.warn(`[TestWaitFlow] [Camera:NoPreview] [FAILED] ${JSON.stringify({ permissions: detail.permissions || {}, previewEnabled: detail.previewEnabled })}`);
+          }
+        };
+        
+        // Register the completion handler to listen for orchestration completion
+        // This must be done BEFORE dispatching the orchestration event
+        window.addEventListener('CamMic:Orchestrate:Complete', onComplete);
+        
+        // Dispatch the orchestration event to start the camera-only flow without preview
+        // This triggers the CamMicPermissionsHandler to request camera permissions and set up devices
+        // without automatically enabling video preview
+        console.log(`[TestWaitFlow] [Camera:NoPreview] [Dispatch] ${JSON.stringify({ event: 'CamMic:Orchestrate:Camera:NoPreview' })}`);
+        window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Camera:NoPreview'));
+      });
+    })();
+  </script>
+  </div> <!-- End container -->
+</body>
+</html>
+
