@@ -11,15 +11,6 @@ class chimeHandler {
   // UI element cache
   static _ui = {};
 
-  // Permission state (from CamMicPermissions)
-  static _permissionState = {
-    camera: undefined,
-    microphone: undefined,
-  };
-
-  // Pending join options (if permissions aren't ready)
-  static _pendingJoin = null;
-
   // Mapping cache (attendeeId -> { role, uid, externalUserId, displayName, etc. })
   static _mappingCache = new Map();
 
@@ -52,7 +43,7 @@ class chimeHandler {
    * ==================================================================== */
   static init(opts) {
     DebugLogger.init();
-    DebugLogger.hijackAlerts();
+    // DebugLogger.hijackAlerts(); // DISABLED - we need to see alerts for debugging
     console.log("[chimeHandler] [init] Start", opts);
 
     // Cache UI elements
@@ -69,13 +60,6 @@ class chimeHandler {
 
     // Parse meetingInfo from URL
     this._parseMeetingInfo();
-
-    // Auto-check permissions on load (disabled by default; set window.enableAutoCamMicCheck=true to enable)
-    try {
-      if (window.enableAutoCamMicCheck === true) {
-        this._autoCheckPermissions();
-      }
-    } catch (_) {}
 
     console.log("[chimeHandler] [init] Complete");
   }
@@ -268,9 +252,33 @@ class chimeHandler {
 
         // NEW: Dispatch state update - determine if caller or callee based on flow
         if (typeof CallHandler !== 'undefined' && typeof CallHandler.dipatchUI === 'function') {
-          // Try to determine if this is a caller or callee connection
-          // This is a temporary dispatch that will be replaced when we detect actual joined state
-          // We'll detect joined state via tile-updated event when hasStream becomes true
+          const side = CallHandler._currentSide;
+          const currentState = CallHandler._currentUIState;
+          console.log("[chimeHandler] [FIX] coreChime:connected - side:", side, "currentState:", currentState);
+          
+          if (side === "caller") {
+            // Caller: transition to connectedJoined immediately when connected
+            // (don't wait for stream since caller joins with media OFF)
+            console.log("[chimeHandler] [FIX] Caller connected - transitioning to caller:connectedJoined");
+            CallHandler.dipatchUI("caller:connectedJoined", "none", {
+              attendeeId: attendeeId,
+              externalUserId: externalUserId,
+            });
+          } else if (side === "callee") {
+            // Callee: transition to joined when they manually join (in callee:connected state)
+            // (don't wait for stream since callee joins with media OFF)
+            if (currentState === "callee:connected") {
+              console.log("[chimeHandler] [FIX] Callee manually joined - transitioning to callee:joined");
+              CallHandler.dipatchUI("callee:joined", "none", {
+                attendeeId: attendeeId,
+                externalUserId: externalUserId,
+              });
+            } else {
+              console.log("[chimeHandler] [FIX] Callee connected but not in callee:connected state, skipping transition. Current state:", currentState);
+            }
+          } else {
+            console.warn("[chimeHandler] [FIX] Unknown side:", side, "currentState:", currentState);
+          }
         }
       }
 
@@ -382,9 +390,12 @@ class chimeHandler {
         }
       }
 
-      // Stop all camera/mic streams
-      if (typeof CamMicPermissionsUtility !== "undefined") {
-        CamMicPermissionsUtility.stopStreams();
+      // Stop all camera/mic streams via event (no direct class calls)
+      try {
+        window.dispatchEvent(new CustomEvent('CamMic:Streams:Stop'));
+        console.log('[chimeHandler] Dispatched CamMic:Streams:Stop event');
+      } catch (err) {
+        console.error('[chimeHandler] Failed to dispatch CamMic:Streams:Stop:', err);
       }
     });
 
@@ -998,35 +1009,7 @@ class chimeHandler {
    * Wire CamMicPermissions Events
    * ==================================================================== */
   static _wireCamMicEvents() {
-    console.log("[chimeHandler] [_wireCamMicEvents] Start");
-
-    window.addEventListener("CamMic:Permissions:Checked", (e) => {
-      const { camera, microphone } = e.detail;
-      this._permissionState.camera = camera;
-      this._permissionState.microphone = microphone;
-      console.log("[chimeHandler] Permissions checked:", this._permissionState);
-
-      // If we have a pending join and permissions are now granted, proceed
-      if (
-        this._pendingJoin &&
-        camera === "granted" &&
-        microphone === "granted"
-      ) {
-        console.log(
-          "[chimeHandler] Permissions granted - proceeding with pending join"
-        );
-        this._executeJoin(this._pendingJoin);
-        this._pendingJoin = null;
-      }
-    });
-
-    window.addEventListener("CamMic:Request:Both:Success", () => {
-      console.log("[chimeHandler] Both permissions granted");
-      // Trigger re-check
-      if (typeof CamMicPermissionsUtility !== "undefined") {
-        CamMicPermissionsUtility.checkPermissions();
-      }
-    });
+    console.log("[chimeHandler] [_wireCamMicEvents] Start - wiring chime:join:meeting event");
 
     // Listen to chime:join:meeting event from callFlowHandler
     document.addEventListener("chime:join:meeting", async (e) => {
@@ -1100,21 +1083,33 @@ class chimeHandler {
           attendeeInfo: attendeeInfoWrapped,
         });
 
-        // Join the meeting with audio/video based on call type
-        // callType will be "audio" or "video" (null defaults to video for compatibility)
-        const enableVideo = callType !== "audio";
+        // Join the meeting with BOTH audio and video OFF (user must manually turn ON)
+        // Use mockCallData mediaType if available, fallback to callType
+        const mediaType = window.mockCallData?.mediaType || callType;
         console.log(
-          "[chimeHandler] Joining coreChime with video:",
-          enableVideo,
-          "callType:",
-          callType
+          "[chimeHandler] Joining coreChime with media OFF - mediaType:",
+          mediaType
         );
+        
+        // ALWAYS join with media OFF - user must manually turn ON
         await coreChime.join({
-          enableAudio: true,
-          enableVideo: enableVideo,
+          enableAudio: false,
+          enableVideo: false,
         });
 
-        console.log("[chimeHandler] Successfully joined Chime meeting");
+        console.log("[chimeHandler] Successfully joined Chime meeting with media OFF");
+        
+        // Update UI state to reflect OFF
+        if (window.vueState && window.vueState.meeting) {
+          window.vueState.meeting.videoFeed = false;
+          window.vueState.meeting.audioFeed = false;
+        }
+        if (window.settings) {
+          window.settings.callCamStatus = false;
+          window.settings.callMicStatus = false;
+        }
+        
+        console.log("[chimeHandler] ✅ Joined with media OFF - user must manually turn ON video/audio");
       } catch (error) {
         console.error("[chimeHandler] Error joining Chime meeting:", error);
       }
@@ -1195,16 +1190,6 @@ class chimeHandler {
   }
 
   /* ====================================================================
-   * Auto-check permissions on load
-   * ==================================================================== */
-  static _autoCheckPermissions() {
-    if (typeof CamMicPermissionsUtility !== "undefined") {
-      console.log("[chimeHandler] Auto-checking permissions");
-      CamMicPermissionsUtility.checkPermissions();
-    }
-  }
-
-  /* ====================================================================
    * handleJoin(opts)
    * Prepares required permissions + policies before calling coreChime.join
    * ==================================================================== */
@@ -1241,28 +1226,18 @@ class chimeHandler {
           : (!needCamera && needMicrophone ? "audioOnlyCall" : "videoOnlyCall");
       } catch (_) {}
 
+      // ❌ DISABLED - CallHandler manages permission UI state, not chimeHandler
       // Tell Vue to show the permission screen
-      try {
-        if (typeof CallHandler !== "undefined" && CallHandler.dipatchUI) {
-          // Determine if caller or callee based on current side
-          const side = CallHandler._currentSide;
-          const permissionState = side === "caller" ? "caller:waitingForCamMicPermissions" : "callee:waitingForCamMicPermissions";
-          CallHandler.dipatchUI(permissionState, "");
-        } else {
-          document.dispatchEvent(new CustomEvent("chime-ui::state", { detail: { state: "callee:waitingForCamMicPermissions", substate: "", ts: Date.now() } }));
-        }
-      } catch (_) {}
-
-      // Request permissions
-      if (typeof CamMicPermissionsUtility !== "undefined") {
-        if (needCamera && needMicrophone) {
-          CamMicPermissionsUtility.requestCameraMicrophone();
-        } else if (needCamera) {
-          CamMicPermissionsUtility.requestCamera();
-        } else if (needMicrophone) {
-          CamMicPermissionsUtility.requestMicrophone();
-        }
-      }
+      // try {
+      //   if (typeof CallHandler !== "undefined" && CallHandler.dipatchUI) {
+      //     // Determine if caller or callee based on current side
+      //     const side = CallHandler._currentSide;
+      //     const permissionState = side === "caller" ? "caller:waitingForCamMicPermissions" : "callee:waitingForCamMicPermissions";
+      //     CallHandler.dipatchUI(permissionState, "");
+      //   } else {
+      //     document.dispatchEvent(new CustomEvent("chime-ui::state", { detail: { state: "callee:waitingForCamMicPermissions", substate: "", ts: Date.now() } }));
+      //   }
+      // } catch (_) {}
 
       // Attempt to refresh permission prompts UI immediately
       try { window.__updatePermissionPrompts && window.__updatePermissionPrompts(); } catch (_) {}
@@ -1410,22 +1385,178 @@ class chimeHandler {
   }
 
   /* ====================================================================
+   * Force Media Controls Off/On (for audio-only calls and grace period)
+   * ==================================================================== */
+  static async forceControlsOff() {
+    console.log("[chimeHandler] [forceControlsOff] ⏸️ GRACE PERIOD - Forcing audio/video OFF");
+    
+    // Disable video at SDK level
+    if (coreChime && coreChime.toggleVideo) {
+      coreChime.toggleVideo(false);
+      console.log("[chimeHandler] ✅ Video toggled OFF at SDK level");
+    }
+    
+    // CRITICAL: Stop audio input stream completely (not just mute)
+    if (coreChime && coreChime._audioVideo) {
+      try {
+        console.log("[chimeHandler] Stopping audio input stream for grace period...");
+        
+        // Stop the audio input device (this actually stops transmission)
+        if (typeof coreChime._audioVideo.stopAudioInput === 'function') {
+          await coreChime._audioVideo.stopAudioInput();
+          console.log("[chimeHandler] ✅ Audio input stream STOPPED (transmission halted)");
+        } else {
+          // Fallback to mute if stopAudioInput doesn't exist
+          coreChime._audioVideo.realtimeMuteLocalAudio();
+          console.log("[chimeHandler] ⚠️ Fallback: Audio muted (stopAudioInput not available)");
+        }
+      } catch (error) {
+        console.error("[chimeHandler] ❌ Error stopping audio input:", error);
+      }
+    }
+    
+    // Update Vue state to reflect OFF status
+    if (window.vueState && window.vueState.meeting) {
+      window.vueState.meeting.videoFeed = false;
+      window.vueState.meeting.audioFeed = false;
+      console.log("[chimeHandler] Vue state updated - video/audio OFF");
+    }
+    if (window.settings) {
+      window.settings.callCamStatus = false;
+      window.settings.callMicStatus = false;
+      console.log("[chimeHandler] Settings state updated - cam/mic OFF");
+    }
+    
+    // Update debug overlays
+    const localIds = coreChime?.getLocalIdentifiers?.();
+    if (localIds && localIds.attendeeId) {
+      this._updateDebugOverlay(localIds.attendeeId, { 
+        audioEnabled: false,
+        videoEnabled: false 
+      });
+      
+      // Update video off indicator to show GRACE PERIOD message
+      this._updateVideoOffIndicatorForGrace(localIds.attendeeId, true);
+    }
+    
+    console.log("[chimeHandler] ✅ Media controls forced OFF (Audio stream STOPPED + Video OFF)");
+  }
+
+  static async forceControlsOn() {
+    console.log("[chimeHandler] [forceControlsOn] ▶️ RESUMING - Re-enabling audio");
+    
+    // CRITICAL: Restart audio input stream
+    if (coreChime && coreChime._audioVideo) {
+      try {
+        console.log("[chimeHandler] Restarting audio input stream after grace period...");
+        
+        // List available audio devices
+        const audioDevices = await coreChime._audioVideo.listAudioInputDevices();
+        if (audioDevices && audioDevices.length > 0) {
+          // Get preferred mic or use first available
+          const preferredMic = localStorage.getItem("CamMicPreferred-microphone") || audioDevices[0].deviceId;
+          
+          // Restart audio input
+          if (typeof coreChime._audioVideo.chooseAudioInputDevice === 'function') {
+            await coreChime._audioVideo.chooseAudioInputDevice(preferredMic);
+            console.log("[chimeHandler] ✅ Audio input restarted:", preferredMic);
+          } else if (typeof coreChime._audioVideo.startAudioInput === 'function') {
+            await coreChime._audioVideo.startAudioInput(preferredMic);
+            console.log("[chimeHandler] ✅ Audio input restarted (old API):", preferredMic);
+          }
+          
+          // Unmute after restarting
+          coreChime._audioVideo.realtimeUnmuteLocalAudio();
+          console.log("[chimeHandler] ✅ Audio unmuted");
+        }
+      } catch (error) {
+        console.error("[chimeHandler] ❌ Error restarting audio input:", error);
+      }
+    }
+    
+    // Update Vue state to reflect audio ON
+    if (window.vueState && window.vueState.meeting) {
+      window.vueState.meeting.audioFeed = true;
+      window.vueState.meeting.videoFeed = false; // Keep video OFF
+      console.log("[chimeHandler] Vue state updated - audio ON, video OFF");
+    }
+    if (window.settings) {
+      window.settings.callMicStatus = true;
+      window.settings.callCamStatus = false; // Keep video OFF
+      console.log("[chimeHandler] Settings state updated - mic ON, cam OFF");
+    }
+    
+    // Update debug overlays
+    const localIds = coreChime?.getLocalIdentifiers?.();
+    if (localIds && localIds.attendeeId) {
+      this._updateDebugOverlay(localIds.attendeeId, { 
+        audioEnabled: true,
+        videoEnabled: false // Keep video OFF, user can enable manually
+      });
+      
+      // Update video off indicator to remove GRACE PERIOD message
+      this._updateVideoOffIndicatorForGrace(localIds.attendeeId, false);
+    }
+    
+    console.log("[chimeHandler] ✅ Audio re-enabled (Stream restarted + Unmuted)");
+  }
+
+  /* ====================================================================
    * handleVideoToggle(on: boolean)
    * ==================================================================== */
   static handleVideoToggle(on) {
-    console.log("[chimeHandler] [handleVideoToggle]", on);
-
-    // Validate camera permission
-    if (on && this._permissionState.camera !== "granted") {
-      DebugLogger.addLog(
-        "ready",
-        "CRITICAL",
-        "handleVideoToggle",
-        "Camera permission required. Please allow camera access first."
-      );
-      if (typeof CamMicPermissionsUtility !== "undefined") {
-        CamMicPermissionsUtility.requestCamera();
+    console.log("[chimeHandler] [handleVideoToggle] Called with:", on);
+    
+    // Check if in chime call and joined
+    const isInChimeCall = coreChime && coreChime._meetingSession && coreChime._audioVideo;
+    console.log("[chimeHandler] [handleVideoToggle] isInChimeCall:", isInChimeCall);
+    
+    if (!isInChimeCall) {
+      // Not in chime call - use CamMic preview
+      console.log("[chimeHandler] [handleVideoToggle] Not in chime - using CamMic preview");
+      
+      if (on) {
+        // Start video preview
+        console.log("[chimeHandler] [handleVideoToggle] Starting CamMic video preview");
+        window.dispatchEvent(new CustomEvent('CamMic:Preview:Start'));
+      } else {
+        // Stop video preview (stop streams)
+        console.log("[chimeHandler] [handleVideoToggle] Stopping CamMic streams");
+        window.dispatchEvent(new CustomEvent('CamMic:Streams:Stop'));
       }
+      
+      // Update UI state
+      if (window.vueState && window.vueState.meeting) {
+        window.vueState.meeting.videoFeed = on;
+      }
+      if (window.settings) {
+        window.settings.callCamStatus = on;
+      }
+      
+      return;
+    }
+    
+    // In chime call - use existing chime toggle logic
+    console.log("[chimeHandler] [handleVideoToggle] In chime - using chime video toggle");
+
+    // Check grace period first
+    if (window.mockCallData?.isInGrace) {
+      const btn = document.querySelector('[data-video-toggle]');
+      if (btn) {
+        btn.setAttribute('disabled-in-grace', 'true');
+      }
+      console.log("[chimeHandler] Video toggle blocked: grace period active");
+      DebugLogger.addLog("connected", "NOTICE", "handleVideoToggle", 
+        "Video toggle blocked during grace period");
+      return;
+    }
+
+    // Check if audio-only call
+    if (window.mockCallData?.mediaType === "audio") {
+      console.log("[chimeHandler] Video toggle blocked: audio-only call");
+      DebugLogger.addLog("connected", "NOTICE", "handleVideoToggle", 
+        "Video toggle blocked during audio-only call");
+      alert("❌ Video is not available in audio-only calls");
       return;
     }
 
@@ -1464,19 +1595,39 @@ class chimeHandler {
    * handleAudioToggle(on: boolean)
    * ==================================================================== */
   static handleAudioToggle(on) {
-    console.log("[chimeHandler] [handleAudioToggle]", on);
-
-    // Validate microphone permission
-    if (on && this._permissionState.microphone !== "granted") {
-      DebugLogger.addLog(
-        "ready",
-        "CRITICAL",
-        "handleAudioToggle",
-        "Microphone permission required. Please allow microphone access first."
-      );
-      if (typeof CamMicPermissionsUtility !== "undefined") {
-        CamMicPermissionsUtility.requestMicrophone();
+    console.log("[chimeHandler] [handleAudioToggle] Called with:", on);
+    
+    // Check if in chime call and joined
+    const isInChimeCall = coreChime && coreChime._meetingSession && coreChime._audioVideo;
+    console.log("[chimeHandler] [handleAudioToggle] isInChimeCall:", isInChimeCall);
+    
+    if (!isInChimeCall) {
+      // Not in chime call - CamMic handles audio automatically
+      console.log("[chimeHandler] [handleAudioToggle] Not in chime - CamMic handles audio");
+      
+      // Update UI state only (CamMic utility manages actual audio)
+      if (window.vueState && window.vueState.meeting) {
+        window.vueState.meeting.audioFeed = on;
       }
+      if (window.settings) {
+        window.settings.callMicStatus = on;
+      }
+      
+      return;
+    }
+    
+    // In chime call - use existing chime toggle logic
+    console.log("[chimeHandler] [handleAudioToggle] In chime - using chime audio toggle");
+
+    // Check grace period first
+    if (window.mockCallData?.isInGrace) {
+      const btn = document.querySelector('[data-audio-toggle]');
+      if (btn) {
+        btn.setAttribute('disabled-in-grace', 'true');
+      }
+      console.log("[chimeHandler] Audio toggle blocked: grace period active");
+      DebugLogger.addLog("connected", "NOTICE", "handleAudioToggle", 
+        "Audio toggle blocked during grace period");
       return;
     }
 
@@ -1622,7 +1773,7 @@ class chimeHandler {
     if (attendeeId) {
       // Show loading overlay for remote toggle (with 200ms delay)
       const showSpinner = setTimeout(() => {
-        this._showLoadingOverlay(attendeeId, videoEnabled ? "Remote turning video on..." : "Remote turning video off...");
+        this._showLoadingOverlay(attendeeId, ""); // Removed "Remote turning video on..." text
       }, 200);
       
       // Track pending state (will be cleared when tile update confirms)
@@ -1986,7 +2137,8 @@ class chimeHandler {
         ${initials}
       </div>
       <div style="font-size: 16px; margin-bottom: 8px;">${displayName}</div>
-      <div style="font-size: 14px; color: #cbd5e0;">📹 VIDEO OFF</div>
+      <div class="video-off-message" style="font-size: 14px; color: #cbd5e0;">📹 VIDEO OFF</div>
+      <div class="grace-period-message" style="font-size: 14px; color: #f39c12; font-weight: bold; margin-top: 8px; display: none;">⏸️ GRACE PERIOD</div>
     `;
 
     container.appendChild(indicator);
@@ -2002,6 +2154,39 @@ class chimeHandler {
     }
     
     return indicator;
+  }
+
+  /* ====================================================================
+   * _updateVideoOffIndicatorForGrace(attendeeId, inGrace) - Show/Hide Grace Message
+   * Updates the indicator to show GRACE PERIOD message
+   * ==================================================================== */
+  static _updateVideoOffIndicatorForGrace(attendeeId, inGrace) {
+    console.log(`[_updateVideoOffIndicatorForGrace] ${attendeeId.substring(0,8)}... inGrace=${inGrace}`);
+    
+    // Find all containers for this attendee
+    const containers = Array.from(document.querySelectorAll(`[data-attendee-id="${attendeeId}"]`));
+    
+    containers.forEach(container => {
+      const indicator = container.querySelector('.video-off-indicator');
+      if (!indicator) return;
+      
+      const videoOffMsg = indicator.querySelector('.video-off-message');
+      const graceMsg = indicator.querySelector('.grace-period-message');
+      
+      if (videoOffMsg && graceMsg) {
+        if (inGrace) {
+          // Show grace period message, hide video off message
+          videoOffMsg.style.display = 'none';
+          graceMsg.style.display = 'block';
+          console.log(`[_updateVideoOffIndicatorForGrace] ✅ Showing GRACE PERIOD for ${attendeeId.substring(0,8)}...`);
+        } else {
+          // Show video off message, hide grace period message
+          videoOffMsg.style.display = 'block';
+          graceMsg.style.display = 'none';
+          console.log(`[_updateVideoOffIndicatorForGrace] ✅ Showing VIDEO OFF for ${attendeeId.substring(0,8)}...`);
+        }
+      }
+    });
   }
 
   /* ====================================================================

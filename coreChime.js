@@ -332,20 +332,23 @@ class coreChime {
       
       // Select audio input (try both old and new SDK APIs)
       if (enableAudio && audioInputDevices.length > 0) {
-        const preferredMic =
-          localStorage.getItem("CamMicPreferred-microphone") ||
-          audioInputDevices[0].deviceId;
+        // Use CamMic utility to get preferred device (has its own memory)
+        const preferredMic = (typeof CamMicPermissionsUtility !== 'undefined' && CamMicPermissionsUtility.getPreferredDevice)
+          ? CamMicPermissionsUtility.getPreferredDevice("microphone")
+          : null;
+        
+        const selectedMic = preferredMic || audioInputDevices[0].deviceId;
 
         try {
           // Try new API first
           if (typeof this._audioVideo.chooseAudioInputDevice === "function") {
-            await this._audioVideo.chooseAudioInputDevice(preferredMic);
-            console.log("[coreChime] ✓ Audio input chosen (new API):", preferredMic);
+            await this._audioVideo.chooseAudioInputDevice(selectedMic);
+            console.log("[coreChime] ✓ Audio input chosen (new API):", selectedMic);
           }
           // Fall back to old API
           else if (typeof this._audioVideo.startAudioInput === "function") {
-            await this._audioVideo.startAudioInput(preferredMic);
-            console.log("[coreChime] ✓ Audio input started (old API):", preferredMic);
+            await this._audioVideo.startAudioInput(selectedMic);
+            console.log("[coreChime] ✓ Audio input started (old API):", selectedMic);
           }
           else {
             console.warn("[coreChime] No audio input method available");
@@ -374,23 +377,26 @@ class coreChime {
 
       // Select video input (try both old and new SDK APIs)
       if (enableVideo && videoInputDevices.length > 0) {
-        const preferredCam =
-          localStorage.getItem("CamMicPreferred-camera") ||
-          videoInputDevices[0].deviceId;
+        // Use CamMic utility to get preferred device (has its own memory)
+        const preferredCam = (typeof CamMicPermissionsUtility !== 'undefined' && CamMicPermissionsUtility.getPreferredDevice)
+          ? CamMicPermissionsUtility.getPreferredDevice("camera")
+          : null;
+        
+        const selectedCam = preferredCam || videoInputDevices[0].deviceId;
 
         try {
           // Store current video device
-          this._currentVideoDevice = preferredCam;
+          this._currentVideoDevice = selectedCam;
           
           // Try new API first
           if (typeof this._audioVideo.chooseVideoInputDevice === "function") {
-            await this._audioVideo.chooseVideoInputDevice(preferredCam);
-            console.log("[coreChime] ✓ Video input chosen (new API):", preferredCam);
+            await this._audioVideo.chooseVideoInputDevice(selectedCam);
+            console.log("[coreChime] ✓ Video input chosen (new API):", selectedCam);
           }
           // Fall back to old API
           else if (typeof this._audioVideo.startVideoInput === "function") {
-            await this._audioVideo.startVideoInput(preferredCam);
-            console.log("[coreChime] ✓ Video input started (old API):", preferredCam);
+            await this._audioVideo.startVideoInput(selectedCam);
+            console.log("[coreChime] ✓ Video input started (old API):", selectedCam);
           }
           else {
             console.warn("[coreChime] No video input method available");
@@ -518,16 +524,6 @@ class coreChime {
       this._audioVideo.stop();
       console.log("[coreChime] ✓ Stopped audio/video session");
 
-      // Stop any remaining camera/mic streams via CamMicPermissions
-      if (
-        typeof CamMicPermissionsUtility !== "undefined" &&
-        typeof CamMicPermissionsUtility.stopStreams === "function"
-      ) {
-        console.log("[coreChime] Stopping all preview/permission streams");
-        CamMicPermissionsUtility.stopStreams();
-        console.log("[coreChime] ✓ Camera light should turn OFF now");
-      }
-
       this._connectionState = { status: "disconnected", reason };
       this._videoEnabled = false; // Reset video state
       this._emit("coreChime:disconnected", { reason });
@@ -606,20 +602,23 @@ class coreChime {
         console.log("[coreChime] Available video devices:", videoDevices.length);
         
         if (videoDevices.length > 0) {
-          const preferredCam =
-            localStorage.getItem("CamMicPreferred-camera") ||
-            videoDevices[0].deviceId;
-
-          console.log("[coreChime] Using camera:", preferredCam);
+          // Use CamMic utility to get preferred device (has its own memory)
+          const preferredCam = (typeof CamMicPermissionsUtility !== 'undefined' && CamMicPermissionsUtility.getPreferredDevice)
+            ? CamMicPermissionsUtility.getPreferredDevice("camera")
+            : null;
+          
+          const selectedCam = preferredCam || videoDevices[0].deviceId;
+          console.log("[coreChime] Preferred camera from CamMic:", preferredCam);
+          console.log("[coreChime] Using camera:", selectedCam);
 
           // Set video input device (try both API versions)
           console.log("[coreChime] 1/3 Setting video input device...");
           try {
           if (typeof this._audioVideo.chooseVideoInputDevice === "function") {
-            await this._audioVideo.chooseVideoInputDevice(preferredCam);
+            await this._audioVideo.chooseVideoInputDevice(selectedCam);
               console.log("[coreChime] ✓ Video input chosen (new API)");
             } else if (typeof this._audioVideo.startVideoInput === "function") {
-              await this._audioVideo.startVideoInput(preferredCam);
+              await this._audioVideo.startVideoInput(selectedCam);
               console.log("[coreChime] ✓ Video input started (old API)");
             }
           } catch (e) {
@@ -826,8 +825,11 @@ class coreChime {
       const SDK = window.ChimeSDK || window.AmazonChimeSDK || window;
       const root = SDK.default || SDK;
       
-      // Get current video device
-      const videoDevice = localStorage.getItem("CamMicPreferred-camera") || this._currentVideoDevice || 'default';
+      // Get current video device using CamMic utility (has its own memory)
+      const preferredCam = (typeof CamMicPermissionsUtility !== 'undefined' && CamMicPermissionsUtility.getPreferredDevice)
+        ? CamMicPermissionsUtility.getPreferredDevice("camera")
+        : null;
+      const videoDevice = preferredCam || this._currentVideoDevice || 'default';
       
       if (level === 'off') {
         // Just use the raw video device (original approach)
@@ -944,8 +946,11 @@ class coreChime {
       const SDK = window.ChimeSDK || window.AmazonChimeSDK || window;
       const root = SDK.default || SDK;
       
-      // Get current video device
-      const videoDevice = localStorage.getItem("CamMicPreferred-camera") || this._currentVideoDevice || 'default';
+      // Get current video device using CamMic utility (has its own memory)
+      const preferredCam = (typeof CamMicPermissionsUtility !== 'undefined' && CamMicPermissionsUtility.getPreferredDevice)
+        ? CamMicPermissionsUtility.getPreferredDevice("camera")
+        : null;
+      const videoDevice = preferredCam || this._currentVideoDevice || 'default';
       
       if (!imageUrl) {
         // Just use the raw video device (original approach)
@@ -1052,10 +1057,20 @@ class coreChime {
 
   /* ====================================================================
    * toggleAudio(on: boolean)
-   * Mutes/unmutes local audio
+   * Starts/stops local audio track (mirrors toggleVideo logic)
    * ==================================================================== */
+  static _audioEnabled = false; // Track audio state
+  
   static async toggleAudio(on) {
-    console.log("[coreChime] [toggleAudio]", on);
+    console.log("[coreChime] [toggleAudio] REQUESTED:", on, "current state:", this._audioEnabled);
+    
+    if (typeof DebugLogger !== "undefined") {
+      DebugLogger.addLog('connected', 'NOTICE', 'coreChime.toggleAudio', `Audio Toggle Request: ${on ? 'ON' : 'OFF'}`, {
+        requested: on,
+        currentState: this._audioEnabled,
+        mismatch: on === this._audioEnabled
+      });
+    }
 
     if (!this._audioVideo) {
       console.warn("[coreChime] Cannot toggle audio - not initialized");
@@ -1064,37 +1079,103 @@ class coreChime {
 
     try {
       if (on) {
-        this._audioVideo.realtimeUnmuteLocalAudio();
-        console.log("[coreChime] Audio UNMUTED - sending audio to meeting");
-      } else {
-        this._audioVideo.realtimeMuteLocalAudio();
-        console.log("[coreChime] Audio MUTED - not sending audio to meeting");
-      }
-
-      // Check actual mute state
-      const isMuted = this._audioVideo.realtimeIsLocalAudioMuted();
-      console.log(
-        "[coreChime] Current mute state:",
-        isMuted ? "MUTED" : "UNMUTED"
-      );
-      
-      // Notify remote users of audio toggle
-      const localAttendeeId = this._localIdentifiers.attendeeId;
-      if (localAttendeeId) {
-        console.log(`[coreChime] 📤 Notifying remote users: audio ${on ? 'ON' : 'OFF'}`);
+        console.log("[coreChime] 🎤 Turning ON audio...");
         
-        if (typeof DebugLogger !== "undefined") {
-          DebugLogger.addLog('connected', 'NOTICE', 'coreChime.toggleAudio', `Sending audio toggle to remote`, {
-            audioEnabled: on,
-            attendeeId: localAttendeeId
-          });
+        // If state says already ON but user is clicking ON again, it means stream is broken
+        // Force a restart by stopping first
+        if (this._audioEnabled) {
+          console.log("[coreChime] ⚠️ State says ON but user clicking ON - forcing restart!");
+          if (typeof DebugLogger !== "undefined") {
+            DebugLogger.addLog('connected', 'NOTICE', 'coreChime.toggleAudio', "Force Restart: Audio", {
+              reason: "State ON but stream appears broken",
+              action: "Stop then restart audio input"
+            });
+          }
+          
+          // Stop current audio input
+          if (typeof this._audioVideo.stopAudioInput === "function") {
+            await this._audioVideo.stopAudioInput();
+            console.log("[coreChime] ✓ Stopped broken audio stream");
+          }
+          
+          // Wait for cleanup
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
         
-        this.sendData("audio-toggle", {
-          audioEnabled: on,
-          attendeeId: localAttendeeId
-        });
+        const audioDevices = await this._audioVideo.listAudioInputDevices();
+        console.log("[coreChime] Available audio devices:", audioDevices.length);
+        
+        if (audioDevices.length > 0) {
+          // Use CamMic utility to get preferred device (has its own memory)
+          const preferredMic = (typeof CamMicPermissionsUtility !== 'undefined' && CamMicPermissionsUtility.getPreferredDevice)
+            ? CamMicPermissionsUtility.getPreferredDevice("microphone")
+            : null;
+          
+          const selectedMic = preferredMic || audioDevices[0].deviceId;
+          console.log("[coreChime] Preferred mic from CamMic:", preferredMic);
+          console.log("[coreChime] Using microphone:", selectedMic);
+
+          // Set audio input device
+          console.log("[coreChime] 1/3 Setting audio input device...");
+          try {
+            if (typeof this._audioVideo.chooseAudioInputDevice === "function") {
+              await this._audioVideo.chooseAudioInputDevice(selectedMic);
+              console.log("[coreChime] ✓ Audio input chosen (new API)");
+            } else if (typeof this._audioVideo.startAudioInput === "function") {
+              await this._audioVideo.startAudioInput(selectedMic);
+              console.log("[coreChime] ✓ Audio input started (old API)");
+            }
+          } catch (e) {
+            console.error("[coreChime] Failed to set audio input:", e);
+            throw e;
+          }
+
+          // Wait for microphone to acquire stream
+          console.log("[coreChime] 2/3 Waiting for microphone to acquire stream...");
+          await new Promise(resolve => setTimeout(resolve, 300));
+
+          // Unmute to enable audio transmission
+          console.log("[coreChime] 3/3 Unmuting audio...");
+          this._audioVideo.realtimeUnmuteLocalAudio();
+          
+          this._audioEnabled = true;
+          console.log("[coreChime] 4/4 Audio ON complete - state updated to:", this._audioEnabled);
+          
+          // Notify remote users via data channel
+          const localAttendeeId = this._localIdentifiers.attendeeId;
+          if (localAttendeeId) {
+            console.log("[coreChime] 📤 Notifying remote users: audio ON");
+            this.sendData("audio-toggle", { audioEnabled: true, attendeeId: localAttendeeId });
+          }
+        } else {
+          console.warn("[coreChime] ❌ No audio devices available");
+        }
+      } else {
+        console.log("[coreChime] 🎤 Turning OFF audio...");
+
+        this._audioEnabled = false;
+        console.log("[coreChime] ✓ Audio state updated to:", this._audioEnabled);
+
+        // Mute audio transmission
+        this._audioVideo.realtimeMuteLocalAudio();
+        console.log("[coreChime] ✓ Audio muted");
+
+        console.log("[coreChime] ✅ Audio OFF complete - microphone muted");
+        
+        // Notify remote users via data channel
+        const localAttendeeId = this._localIdentifiers.attendeeId;
+        if (localAttendeeId) {
+          console.log("[coreChime] 📤 Notifying remote users: audio OFF");
+          this.sendData("audio-toggle", { audioEnabled: false, attendeeId: localAttendeeId });
+        }
       }
+
+      // Check actual mute state for verification
+      const isMuted = this._audioVideo.realtimeIsLocalAudioMuted();
+      console.log(
+        "[coreChime] ✅ Verified mute state:",
+        isMuted ? "MUTED (audio OFF)" : "UNMUTED (audio ON)"
+      );
 
       console.log("[coreChime] [toggleAudio] Complete");
     } catch (error) {

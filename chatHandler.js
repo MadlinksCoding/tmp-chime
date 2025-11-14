@@ -2,8 +2,109 @@
 // Handles chat input, send button, enter key, and emoji insertion
 // Uses existing styled chat UI (data-chat-messages-global container)
 
-(function initChatHandler(retryCount = 0) {
-  const MAX_RETRIES = 20; // Stop after 10 seconds (20 * 500ms)
+// Global message store - persists messages even when panel is closed
+window.chatMessageStore = window.chatMessageStore || [];
+
+// Global message listener - receives messages even when panel is closed
+(function initGlobalMessageListener() {
+  console.log('[chatHandler] Setting up global message listener');
+  
+  window.addEventListener('receiveChatMessage', (e) => {
+    console.log('[chatHandler] 📨 [Global] Received chat message event:', e.detail);
+    const { message, sender, isSelf } = e.detail || {};
+    
+    if (message) {
+      // Skip self messages - they're already rendered when sent
+      if (isSelf === true) {
+        console.log('[chatHandler] ⏭️ [Global] Self message - skipping (already rendered when sent)');
+        return;
+      }
+      
+      const timestamp = e.detail.timestamp || Date.now();
+      
+      // Check for duplicates - don't store if message already exists
+      const isDuplicate = window.chatMessageStore.some(stored => 
+        stored.message === message && 
+        stored.sender === (sender || 'Unknown') && 
+        Math.abs(stored.timestamp - timestamp) < 1000 // Within 1 second
+      );
+      
+      if (isDuplicate) {
+        console.log('[chatHandler] ⏭️ [Global] Duplicate message detected - skipping storage');
+        return;
+      }
+      
+      // Store message in global store
+      const messageData = {
+        message: message,
+        sender: sender || 'Unknown',
+        isSelf: isSelf === true,
+        timestamp: timestamp
+      };
+      
+      window.chatMessageStore.push(messageData);
+      console.log('[chatHandler] ✅ [Global] Stored message in queue. Total messages:', window.chatMessageStore.length);
+      
+      // If chatHandler is initialized and container exists, render immediately
+      if (window.chatHandlerInitialized) {
+        const chatMessages = document.querySelector('[data-chat-messages-global]');
+        if (chatMessages) {
+          console.log('[chatHandler] ✅ [Global] Chat panel open - rendering message immediately');
+          renderStoredMessage(messageData);
+        } else {
+          console.log('[chatHandler] ⏳ [Global] Chat panel closed - message stored for later');
+        }
+      } else {
+        console.log('[chatHandler] ⏳ [Global] ChatHandler not initialized - message stored for later');
+      }
+    } else {
+      console.warn('[chatHandler] ⚠️ [Global] Received chat event but no message content');
+    }
+  });
+  
+  console.log('[chatHandler] ✅ Global message listener initialized');
+})();
+
+// Helper function to render a stored message
+function renderStoredMessage(messageData) {
+  const chatMessages = document.querySelector('[data-chat-messages-global]');
+  if (!chatMessages) {
+    console.warn('[chatHandler] Cannot render message - container not found');
+    return;
+  }
+  
+  const messageDiv = document.createElement('div');
+  
+  if (messageData.isSelf) {
+    // Sender message (right side, tan/brown background)
+    messageDiv.className = 'mt-1 bg-white/15 rounded-t-[20px] rounded-bl-[20px] px-3 py-2 w-max ml-auto sender-msg';
+    messageDiv.innerHTML = `
+      <p class="text-white font-normal font-poppins text-base">${escapeHtml(messageData.message)}</p>
+    `;
+  } else {
+    // Receiver message (left side, dark background with sender name)
+    messageDiv.className = 'mt-1 bg-black/40 rounded-t-[20px] rounded-br-[20px] px-3 py-2 w-max receiver-msg';
+    messageDiv.innerHTML = `
+      <!-- <p class="text-[#FB5BA2] font-semibold text-xs mb-1">${escapeHtml(messageData.sender)}</p> -->
+      <p class="text-white font-normal font-poppins text-base">${escapeHtml(messageData.message)}</p>
+    `;
+  }
+  
+  chatMessages.appendChild(messageDiv);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// Don't auto-initialize - only initialize when chat panel opens
+function initChatHandler(retryCount = 0) {
+  const MAX_RETRIES = 200; // Stop after 10 seconds (20 * 500ms)
   
   console.log('[chatHandler] Initializing... (attempt ' + (retryCount + 1) + ')');
 
@@ -59,6 +160,10 @@
       console.warn('[chatHandler] chimeHandler not available');
     }
 
+    // Don't store sent messages in global store - they're rendered immediately
+    // The message will be stored when received back (if needed) via the global listener
+    // This prevents duplicates
+    
     // Add to local chat UI
     renderChatMessage(message, 'You', true);
 
@@ -72,14 +177,15 @@
     
     if (isLocal) {
       // Sender message (right side, tan/brown background)
-      messageDiv.className = 'mt-1 bg-[#6b665d] rounded-t-[20px] rounded-bl-[20px] px-3 py-2 w-max ml-auto sender-msg';
+      messageDiv.className = 'mt-1 bg-white/15 rounded-t-[20px] rounded-bl-[20px] px-3 py-2 w-max ml-auto sender-msg';
       messageDiv.innerHTML = `
         <p class="text-white font-normal font-poppins text-base">${escapeHtml(message)}</p>
       `;
     } else {
-      // Receiver message (left side, dark background)
-      messageDiv.className = 'mt-1 bg-[#00000066] rounded-t-[20px] rounded-br-[20px] px-3 py-2 w-max receiver-msg';
+      // Receiver message (left side, dark background with sender name)
+      messageDiv.className = 'mt-1 bg-black/40 rounded-t-[20px] rounded-br-[20px] px-3 py-2 w-max receiver-msg';
       messageDiv.innerHTML = `
+        <!-- <p class="text-[#FB5BA2] font-semibold text-xs mb-1">${escapeHtml(sender)}</p> -->
         <p class="text-white font-normal font-poppins text-base">${escapeHtml(message)}</p>
       `;
     }
@@ -118,17 +224,23 @@
     chatInput.focus();
   });
 
-  // Listen for incoming chat messages (from chimeHandler)
-  window.addEventListener('receiveChatMessage', (e) => {
-    console.log('[chatHandler] 📨 Received chat message event:', e.detail);
-    const { message, sender } = e.detail || {};
-    if (message) {
-      console.log('[chatHandler] ✅ Rendering incoming message from:', sender);
-      renderChatMessage(message, sender || 'Unknown', false);
+  // Render all stored messages from before panel was opened
+  // Only render if container is empty (to avoid duplicates if messages were already rendered)
+  if (window.chatMessageStore && window.chatMessageStore.length > 0) {
+    const existingMessages = chatMessages.querySelectorAll('.sender-msg, .receiver-msg');
+    if (existingMessages.length === 0) {
+      console.log('[chatHandler] 📦 Rendering', window.chatMessageStore.length, 'stored messages');
+      window.chatMessageStore.forEach((messageData) => {
+        renderChatMessage(messageData.message, messageData.sender, messageData.isSelf);
+      });
+      console.log('[chatHandler] ✅ All stored messages rendered');
     } else {
-      console.warn('[chatHandler] ⚠️ Received chat event but no message content');
+      console.log('[chatHandler] ⏭️ Container already has', existingMessages.length, 'messages - skipping stored messages to avoid duplicates');
     }
-  });
+  }
+
+  // Note: Global listener already handles new messages, so we don't need another listener here
+  // The global listener will render new messages immediately since chatHandler is now initialized
 
   console.log('[chatHandler] ✅ Chat handler initialized');
 
@@ -140,6 +252,8 @@
   
   // Expose globally for WaitingConnected component and debugging
   window.chatHandlerInitialized = true;
+  // Expose showEmojiPicker globally for react button
+  window.showEmojiPicker = showEmojiPicker;
   window.testChatSend = function(testMessage) {
     console.log('[chatHandler] 🧪 Testing chat send with message:', testMessage);
     chatInput.value = testMessage || 'Test message from console';
@@ -147,19 +261,19 @@
   };
   
   console.log('[chatHandler] 💡 You can test chat by calling: window.testChatSend("hello")');
-})();
+}
+
+// Expose function globally so it can be called manually
+window.initChatHandler = initChatHandler;
 
 // Expose initialization function globally
 window.initChatHandlerManually = function() {
   console.log('[chatHandler] Manual initialization requested');
-  // Clear any existing listeners to avoid duplicates
-  const chatInput = document.querySelector('[data-chat-input]');
-  const chatSendBtn = document.querySelector('[data-chat-send]');
-  
-  if (chatInput && chatSendBtn) {
-    console.log('[chatHandler] ✅ Elements found, re-initializing');
-    // Re-run initialization with retry count 0
-    window.location.reload(); // Simple reload for now
+  if (typeof window.initChatHandler === 'function') {
+    console.log('[chatHandler] ✅ Initializing chatHandler');
+    window.initChatHandler(0); // Start with retry count 0
+  } else {
+    console.warn('[chatHandler] initChatHandler function not found');
   }
 };
 
@@ -303,7 +417,7 @@ function renderMediaCard(item) {
         <div class="flex items-center gap-1">
           <div class="flex items-center gap-1">
             <span>
-              <img src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/star-07-pink.svg" alt="" class="w-[16px] h-[16px] aspect-344-198">
+              <img src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/star-07-pink.svg" alt="" class="w-[16px] h-[16px] aspect-[344/198.16]">
             </span>
             <span class="text-[#FB5BA2] text-[14px] leading-[1.25rem] italic font-bold">${escapeHtml(item.creator?.username || 'You')}</span>
           </div>
@@ -311,7 +425,7 @@ function renderMediaCard(item) {
         </div>
         <div class="relative w-full">
           <div class="w-100">
-            <img src="${item.thumbnail_url || "https://picsum.photos/seed/v1/900/600"}" alt="Sunday by the River - watch me catch a 10 kg..." class="w-full max-h-60 object-cover aspect-344-198" loading="lazy">
+            <img src="${item.thumbnail_url || "https://picsum.photos/seed/v1/900/600"}" alt="Sunday by the River - watch me catch a 10 kg..." class="w-full max-h-60 object-cover aspect-[344/198.16]" loading="lazy">
           </div>
           <div class="absolute top-1 left-1">
             <span class="px-1 py-[1px] flex items-center justify-center gap-[3px] bg-gray-600">
@@ -399,7 +513,7 @@ function renderMerchCard(item) {
         <div class="flex items-center gap-1">
           <div class="flex items-center gap-1">
             <span>
-              <img src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/star-07-pink.svg" alt="" class="w-[16px] h-[16px] aspect-344-198">
+              <img src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/star-07-pink.svg" alt="" class="w-[16px] h-[16px] aspect-[344/198.16]">
             </span>
             <span class="text-[#FB5BA2] text-[14px] leading-[1.25rem] italic font-bold">${escapeHtml(item.creator?.username || 'You')}</span>
           </div>
@@ -407,7 +521,7 @@ function renderMerchCard(item) {
         </div>
         <div class="relative w-full">
           <div class="w-100">
-            <img src="${(Array.isArray(item.gallery) && item.gallery.length > 0) ? item.gallery[0] : "https://picsum.photos/seed/m2/900/600"}" alt="Sunday by the River - watch me catch a 10 kg..." class="w-full max-h-60 object-cover aspect-344-198" loading="lazy">
+            <img src="${(Array.isArray(item.gallery) && item.gallery.length > 0) ? item.gallery[0] : "https://picsum.photos/seed/m2/900/600"}" alt="Sunday by the River - watch me catch a 10 kg..." class="w-full max-h-60 object-cover aspect-[344/198.16]" loading="lazy">
           </div>
         </div>
       </div>
@@ -471,17 +585,17 @@ function renderSubscriptionCard(item) {
   cardDiv.innerHTML = `
     <div class="px-1 py-1 text-sm font-poppins flex flex-col">
       <div class="flex gap-1 items-center">
-        <img class="w-[16px] h-[16px] aspect-344-198" src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/star-07-pink.svg" alt="">
+        <img class="w-[16px] h-[16px] aspect-[344/198.16]" src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/star-07-pink.svg" alt="">
         <span class="font-semibold text-[#FB5BA2] text-sm">${escapeHtml(item.creator?.username || 'You')}</span>
         <p class="text-gray-300 italic font-normal font-poppins text-sm w-full">
           posted a subscription tier
         </p>
       </div>
       <div class="mt-2">
-        <div class="relative w-[344px] max-h-[188px] bottom-0 overflow-hidden">
-          <img src="${item.background_image || "https://picsum.photos/seed/s1/1200/800"}" alt="Sunday by the River - watch me catch a 10 kg..." class="w-full h-full opacity-50 object-cover" />
+        <div class="relative bottom-0 overflow-hidden">
+          <img src="${item.background_image || "https://picsum.photos/seed/s1/1200/800"}" alt="Sunday by the River - watch me catch a 10 kg..." class="w-full h-full opacity-50 object-cover aspect-[344/198.16]" />
           
-          <div style="background: linear-gradient(90deg, rgba(255, 0, 102, 0.1875) 0%, rgba(255, 0, 102, 0.125) 50%, rgba(255, 0, 102, 0) 100%);" class="absolute inset-x-0 top-0 border-l-2 border-[#FF0066] h-full  text-white p-4">
+          <div style="background: linear-gradient(90deg, rgba(255, 0, 102, 0.1875) 0%, rgba(255, 0, 102, 0.125) 50%, rgba(255, 0, 102, 0) 100%);" class="absolute inset-x-0 aspect-[344/198.16] top-0 border-l-2 border-[#FF0066] h-full  text-white p-4">
             <div class="absolute right-0 top-0 lg:hidden">
               <img class="h-5 w-5" src="assets/sub-svgs/x-close.svg" alt="">
             </div>

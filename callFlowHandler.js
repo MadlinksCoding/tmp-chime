@@ -12,24 +12,50 @@
  * - 🚨 NEW: single UI bridge method `dipatchUI()` invoked at EVERY step to trigger Vue.
  * - 🚨 NEW: caller also runs its own 25s ring timer (symmetry with callee).
  * ==================================================================== */
- 
+
+console.log("[CallHandler] [FIX v1.1] ✅ FIXED VERSION LOADED");
 
 class CallHandler {
   /* === GLOBAL CONFIGURATION === */
   static CALLEE_MANUAL_JOIN_ENABLED = true; // set to false to auto join and not wait for connect.
  
+  /* === STATE TRACKING === */
+  static _currentUIState = null;
+  static _currentUISubstate = null;
+  static _lastDispatchTime = 0;
+  static _duplicateThrottleMs = 50; // Only skip if duplicate within 50ms
+
+  /* === STATE RESET === */
+  static resetUIState() {
+    console.log('[UI] Resetting UI state tracking (call ended)');
+    CallHandler._currentUIState = null;
+    CallHandler._currentUISubstate = null;
+    CallHandler._lastDispatchTime = 0;
+  }
 
   /* === ONLY ADDITION: single UI dispatcher (exact name requested) === */
 /* ======================================================================
- * SINGLE UI DISPATCHER (with extra logging)
+ * SINGLE UI DISPATCHER (with extra logging and smart duplicate prevention)
  * ====================================================================== */
-static dipatchUI(state, substate = "none", payload = {}) {alert();
+static dipatchUI(state, substate = "none", payload = {}) {
   console.log("[UI] dispatch requested", {
     gotCallHandler: typeof CallHandler !== "undefined",
     state,
     substate,
     payloadType: typeof payload,
   });
+
+  const now = Date.now();
+  const timeSinceLastDispatch = now - CallHandler._lastDispatchTime;
+  
+  // Check if we're already in this exact state AND it was dispatched recently (within throttle window)
+  // This prevents rapid-fire duplicates while allowing intentional state refreshes
+  if (CallHandler._currentUIState === state && 
+      CallHandler._currentUISubstate === substate && 
+      timeSinceLastDispatch < CallHandler._duplicateThrottleMs) {
+    console.log(`[UI] ⏭️ SKIPPED duplicate dispatch: already in ${state} / ${substate} (dispatched ${timeSinceLastDispatch}ms ago)`);
+    return;
+  }
 
   try {
     if (!document || !document.dispatchEvent) {
@@ -45,7 +71,19 @@ static dipatchUI(state, substate = "none", payload = {}) {alert();
       new CustomEvent("chime-ui::state", { detail })
     );
 
+    // Update state tracking
+    CallHandler._currentUIState = state;
+    CallHandler._currentUISubstate = substate;
+    CallHandler._lastDispatchTime = now;
+
     console.log(`[UI] → ${state} / ${substate}`, detail);
+    
+    // Auto-reset state tracking if call has ended
+    if (state.includes('terminated') || state.includes('rejected') || state.includes('declined') || state === 'ended') {
+      console.log('[UI] 🔄 Call ended - will reset state tracking for next call');
+      // Reset on next tick to allow current state to be processed
+      setTimeout(() => CallHandler.resetUIState(), 0);
+    }
   } catch (e) {
     console.error("[UI] dispatch failed", e);
   }
@@ -278,6 +316,18 @@ static dipatchUI(state, substate = "none", payload = {}) {alert();
       flag: "meeting:status",
       callback: CallHandler.handleSocketMeetingStatus,
     });
+    SocketHandler.registerSocketListener({
+      flag: "grace:start",
+      callback: CallHandler.handleSocketGraceStart,
+    });
+    SocketHandler.registerSocketListener({
+      flag: "grace:resume",
+      callback: CallHandler.handleSocketGraceResume,
+    });
+    SocketHandler.registerSocketListener({
+      flag: "grace:end",
+      callback: CallHandler.handleSocketGraceEnd,
+    });
 
     // Wire up Join Meeting button for callee manual join
     const joinMeetingBtn = document.getElementById("link-join-meeting");
@@ -431,6 +481,9 @@ static dipatchUI(state, substate = "none", payload = {}) {alert();
       chimeHandler._hasShownInCallAlert = false;
     }
     
+    // Reset UI state tracking for new call
+    CallHandler.resetUIState();
+    
     // 🔔 UI (caller) → calling state
     CallHandler.dipatchUI("caller:callWaiting", "none", {
       callerId: callerIdVal,
@@ -554,8 +607,27 @@ static dipatchUI(state, substate = "none", payload = {}) {alert();
       return;
     }
 
+    // Initialize CamMic permissions system
+    console.log('[CallHandler] Initializing CamMic permissions system');
+    window.dispatchEvent(new CustomEvent('CamMic:Init'));
+
     // Store callType for caller
     CallHandler._invite.callType = mediaType;
+
+    // Populate mockCallData for the call
+    if (window.mockCallData) {
+      window.mockCallData.callType = CallHandler.TYPE_INSTANT;
+      window.mockCallData.mediaType = mediaType;
+      window.mockCallData.currentUserRole = callerRole;
+      window.mockCallData.currentUserSide = "caller";
+      // Use mockCallData users if CallHandler doesn't have them set
+      CallHandler._currentUserData = CallHandler._currentUserData || window.mockCallData.currentUser;
+      CallHandler._targetUserData = CallHandler._targetUserData || window.mockCallData.targetUser;
+    }
+
+    // Validate user data before initiating call
+    if (!CallHandler.validateUserData(CallHandler._currentUserData, "Current user data")) return;
+    if (!CallHandler.validateUserData(CallHandler._targetUserData, "Target user data")) return;
 
     console.log(`[CallHandler] dispatch ${CallHandler.FLAGS.CALL_INITIATE}`);
     document.dispatchEvent(
@@ -762,6 +834,12 @@ static dipatchUI(state, substate = "none", payload = {}) {alert();
       return;
     }
 
+    // Validate user data before accepting call
+    const currentUserData = CallHandler._invite.calleeData || window.mockCallData?.currentUser;
+    const targetUserData = CallHandler._invite.callerData || window.mockCallData?.targetUser;
+    if (!CallHandler.validateUserData(currentUserData, "Current user (callee) data")) return;
+    if (!CallHandler.validateUserData(targetUserData, "Target user (caller) data")) return;
+
     // Clear callee's ring timer since we're accepting
     CallHandler.clearCalleeRingTimer();
 
@@ -775,13 +853,14 @@ static dipatchUI(state, substate = "none", payload = {}) {alert();
       chimeHandler._hasShownInCallAlert = false;
     }
     
-    // 🔔 UI (callee) → accepted call, setting up
+    // 🔔 UI (callee) → IMMEDIATELY show accepted state
+    console.log('[CallHandler] [Callee] 📺 Showing callAccepted IMMEDIATELY');
     CallHandler.dipatchUI("callee:callAccepted", "none", {
       callerId: callerIdVal,
       calleeId: calleeIdVal,
       role: calleeRole,
     });
-    CallHandler._inCallOrConnecting = true; // NEW
+    CallHandler._inCallOrConnecting = true;
 
     console.log("[CallHandler] SELF_STOP_RING to callee (all devices)");
     SocketHandler.sendSocketMessage({
@@ -809,7 +888,187 @@ static dipatchUI(state, substate = "none", payload = {}) {alert();
     );
 
     DebugLogger.addLog("accepted call", "NOTICE", "handleAcceptClick", "Call accepted");
-    DebugLogger.addLog("setuping up", "NOTICE", "handleAcceptClick", "Step 1: Creating meeting in database...");
+    DebugLogger.addLog("setuping up", "NOTICE", "handleAcceptClick", "Step 1: Creating meeting...");
+
+    // Orchestrate cam/mic permissions for callee based on call type
+    console.log('[CallHandler] [Callee] [FIX v1.1] Orchestrating cam/mic permissions');
+    
+    const mediaType = window.mockCallData?.mediaType || CallHandler._invite?.callType || 'video';
+    const isVideoCall = mediaType === 'video';
+    console.log('[CallHandler] [Callee] [FIX v1.1] Media type:', mediaType, 'isVideoCall:', isVideoCall);
+    
+    // Listen for when browser will prompt (shows UI BEFORE browser freezes)
+    const onShowWaiting = (ev) => {
+      console.log('[CallHandler] [Callee] [FIX v1.1] ⏳ CamMic:UI:ShowWaiting received - showing waiting UI NOW');
+      console.log('[CallHandler] [Callee] [FIX v1.1] Event detail:', ev.detail);
+      CallHandler.dipatchUI("callee:waitingForCamMicPermissions", "none", {
+        callerId: callerIdVal,
+        calleeId: calleeIdVal,
+        role: calleeRole,
+      });
+      console.log('[CallHandler] [Callee] [FIX v1.1] ✅ UI transitioned to callee:waitingForCamMicPermissions');
+    };
+    
+    // Listen for permissions resolved
+    const onPermissionsResolved = (ev) => {
+      const detail = ev.detail || {};
+      console.log('[CallHandler] [Callee] [FIX v1.1] 📺 CamMic:UI:PermissionsResolved received:', detail);
+      
+      // If we were in waiting state, return to callAccepted
+      if (CallHandler._currentUIState === 'callee:waitingForCamMicPermissions') {
+        console.log('[CallHandler] [Callee] [FIX v1.1] 📺 Current state is waitingForCamMicPermissions - returning to callAccepted');
+        CallHandler.dipatchUI("callee:callAccepted", "none", {
+          callerId: callerIdVal,
+          calleeId: calleeIdVal,
+          role: calleeRole,
+        });
+        console.log('[CallHandler] [Callee] [FIX v1.1] ✅ UI transitioned back to callee:callAccepted');
+      } else {
+        console.log('[CallHandler] [Callee] [FIX v1.1] ⏭️ Current state is NOT waitingForCamMicPermissions, skipping UI change. Current state:', CallHandler._currentUIState);
+      }
+    };
+    
+    if (isVideoCall) {
+      // Video call: orchestrate both with no preview
+      console.log('[CallHandler] [Callee] [FIX v1.1] Video call - orchestrating both (no preview)');
+      
+      // Use a callback pattern to wait for orchestration completion
+      const onAcceptComplete = (ev) => {
+        console.log('[CallHandler] [Callee] [FIX v1.1] 🔔 CamMic:Orchestrate:Complete received');
+        window.removeEventListener('CamMic:Orchestrate:Complete', onAcceptComplete);
+        window.removeEventListener('CamMic:UI:ShowWaiting', onShowWaiting);
+        window.removeEventListener('CamMic:UI:PermissionsResolved', onPermissionsResolved);
+        console.log('[CallHandler] [Callee] [FIX v1.1] 🧹 Removed all event listeners');
+        
+        const detail = ev.detail || {};
+        console.log('[CallHandler] [Callee] [FIX v1.1] CamMic orchestration complete:', detail);
+        
+        // Check permission states
+        const camera = detail.permissions?.camera || 'unknown';
+        const microphone = detail.permissions?.microphone || 'unknown';
+        
+        console.log('[CallHandler] [Callee] [FIX v1.1] Permission states:', { camera, microphone });
+        console.log('[CallHandler] [Callee] [FIX v1.1] Current UI state:', CallHandler._currentUIState);
+        
+        // If permissions denied, show error and stay waiting
+        if (camera === 'denied' || microphone === 'denied') {
+          console.log('[CallHandler] [Callee] [FIX v1.1] ❌ Permissions denied - keeping waiting UI');
+          alert('❌ Camera/Microphone access denied. Please enable permissions in browser settings and try again.');
+          // Stay in permission waiting state (UI already showing)
+          return;
+        }
+        
+        // If permissions granted, proceed
+        if (camera === 'granted' && microphone === 'granted') {
+          console.log('[CallHandler] [Callee] [FIX v1.1] ✅ Both permissions granted');
+          console.log('[CallHandler] [Callee] [FIX v1.1] Current UI state before continueAcceptFlow:', CallHandler._currentUIState);
+          
+          // If we never showed waiting UI, we're still in callAccepted - that's correct!
+          if (CallHandler._currentUIState === 'callee:waitingForCamMicPermissions') {
+            console.log('[CallHandler] [Callee] [FIX v1.1] ⚠️ Still in waitingForCamMicPermissions - onPermissionsResolved should have handled this');
+          } else {
+            console.log('[CallHandler] [Callee] [FIX v1.1] ✅ Still in callAccepted (never showed waiting UI) - correct behavior!');
+          }
+          
+          // Continue with accept flow (stays in callAccepted if we never showed waiting)
+          continueAcceptFlow();
+          return;
+        }
+        
+        // Unknown state - show warning but proceed
+        console.warn('[CallHandler] [Callee] [FIX v1.1] ⚠️ Unknown permission state - proceeding anyway');
+        alert('⚠️ Unable to verify camera/microphone permissions. Call may not work properly.');
+        continueAcceptFlow();
+      };
+      
+      // Listen for UI events (NEW system)
+      console.log('[CallHandler] [Callee] [FIX v1.1] 📡 Registering listeners: CamMic:UI:ShowWaiting, CamMic:UI:PermissionsResolved, CamMic:Orchestrate:Complete');
+      window.addEventListener('CamMic:UI:ShowWaiting', onShowWaiting);
+      window.addEventListener('CamMic:UI:PermissionsResolved', onPermissionsResolved);
+      
+      // Listen for orchestration completion
+      window.addEventListener('CamMic:Orchestrate:Complete', onAcceptComplete);
+      console.log('[CallHandler] [Callee] [FIX v1.1] ✅ All listeners registered');
+      
+      // Start orchestration
+      console.log('[CallHandler] [Callee] [FIX v1.1] 🚀 Dispatching CamMic:Orchestrate:Both:NoPreview');
+      window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Both:NoPreview'));
+      console.log('[CallHandler] [Callee] [FIX v1.1] ✅ Orchestration started - waiting for events...');
+      
+    } else {
+      // Audio call: orchestrate microphone only
+      console.log('[CallHandler] [Callee] [FIX v1.1] Audio call - orchestrating microphone only');
+      
+      // Use a callback pattern to wait for orchestration completion
+      const onAcceptComplete = (ev) => {
+        console.log('[CallHandler] [Callee] [FIX v1.1] 🔔 CamMic:Orchestrate:Complete received (audio)');
+        window.removeEventListener('CamMic:Orchestrate:Complete', onAcceptComplete);
+        window.removeEventListener('CamMic:UI:ShowWaiting', onShowWaiting);
+        window.removeEventListener('CamMic:UI:PermissionsResolved', onPermissionsResolved);
+        console.log('[CallHandler] [Callee] [FIX v1.1] 🧹 Removed all event listeners (audio)');
+        
+        const detail = ev.detail || {};
+        console.log('[CallHandler] [Callee] [FIX v1.1] Mic orchestration complete:', detail);
+        
+        // Check permission states
+        const microphone = detail.permissions?.microphone || 'unknown';
+        
+        console.log('[CallHandler] [Callee] [FIX v1.1] Microphone permission state:', microphone);
+        console.log('[CallHandler] [Callee] [FIX v1.1] Current UI state:', CallHandler._currentUIState);
+        
+        // If permission denied, show error and stay waiting
+        if (microphone === 'denied') {
+          console.log('[CallHandler] [Callee] [FIX v1.1] ❌ Microphone denied - keeping waiting UI');
+          alert('❌ Microphone access denied. Please enable permissions in browser settings and try again.');
+          // Stay in permission waiting state (UI already showing)
+          return;
+        }
+        
+        // If permission granted, proceed
+        if (microphone === 'granted') {
+          console.log('[CallHandler] [Callee] [FIX v1.1] ✅ Microphone permission granted');
+          console.log('[CallHandler] [Callee] [FIX v1.1] Current UI state before continueAcceptFlow:', CallHandler._currentUIState);
+          
+          // If we never showed waiting UI, we're still in callAccepted - that's correct!
+          if (CallHandler._currentUIState === 'callee:waitingForCamMicPermissions') {
+            console.log('[CallHandler] [Callee] [FIX v1.1] ⚠️ Still in waitingForCamMicPermissions - onPermissionsResolved should have handled this');
+          } else {
+            console.log('[CallHandler] [Callee] [FIX v1.1] ✅ Still in callAccepted (never showed waiting UI) - correct behavior!');
+          }
+          
+          // Continue with accept flow (stays in callAccepted if we never showed waiting)
+          continueAcceptFlow();
+          return;
+        }
+        
+        // Unknown state - show warning but proceed
+        console.warn('[CallHandler] [Callee] [FIX v1.1] ⚠️ Unknown microphone permission state - proceeding anyway');
+        alert('⚠️ Unable to verify microphone permissions. Call may not work properly.');
+        continueAcceptFlow();
+      };
+      
+      // Listen for UI events (NEW system)
+      console.log('[CallHandler] [Callee] [FIX v1.1] 📡 Registering listeners (audio): CamMic:UI:ShowWaiting, CamMic:UI:PermissionsResolved, CamMic:Orchestrate:Complete');
+      window.addEventListener('CamMic:UI:ShowWaiting', onShowWaiting);
+      window.addEventListener('CamMic:UI:PermissionsResolved', onPermissionsResolved);
+      
+      // Listen for orchestration completion
+      window.addEventListener('CamMic:Orchestrate:Complete', onAcceptComplete);
+      console.log('[CallHandler] [Callee] [FIX v1.1] ✅ All listeners registered (audio)');
+      
+      // Start orchestration
+      console.log('[CallHandler] [Callee] [FIX v1.1] 🚀 Dispatching CamMic:Orchestrate:Microphone');
+      window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Microphone'));
+      console.log('[CallHandler] [Callee] [FIX v1.1] ✅ Orchestration started (audio) - waiting for events...');
+    }
+    
+    // Return early - the rest of the accept flow will run in continueAcceptFlow()
+    console.log('[CallHandler] [Callee] [FIX v1.1] ⏸️ Returning early - accept flow will continue in continueAcceptFlow()');
+    return;
+    
+    // Helper function to continue accept flow after CamMic orchestration
+    function continueAcceptFlow() {
+      console.log('[CallHandler] [Callee] 🎬 Continuing accept flow after CamMic orchestration (meeting setup)');
 
     console.log("[CallHandler] meeting ops begin");
     
@@ -969,6 +1228,7 @@ static dipatchUI(state, substate = "none", payload = {}) {alert();
           schema: CallHandler.SCHEMA.meetingProblem,
         });
       });
+    } // End of continueAcceptFlow function
   }
 
   static handleRejectClick() {
@@ -1822,12 +2082,9 @@ static dipatchUI(state, substate = "none", payload = {}) {alert();
         schema: CallHandler.SCHEMA.decline,
       });
 
-      // Optional UI ping showing a missed/auto-declined incoming
-      CallHandler.dipatchUI("callee:terminated", "auto-declined", {
-        callerId: body.callerId,
-        calleeId: body.calleeId,
-        reason: "in_another_call",
-      });
+      // Don't dispatch UI change - just decline the new call silently
+      // (keep current call active, don't show terminated state)
+      console.log("[CallHandler] Auto-declined new incoming call (user already in a call)");
       return; // do not start a new ring timer or incoming UI
     }
 
@@ -1838,6 +2095,28 @@ static dipatchUI(state, substate = "none", payload = {}) {alert();
     CallHandler._invite.callType = body.mediaType || "video";
     CallHandler._invite.callerData = body.callerData || null;
     CallHandler._invite.calleeData = body.calleeData || null;
+    
+    // Populate mockCallData for the call
+    if (window.mockCallData) {
+      window.mockCallData.callType = body.callType || CallHandler.TYPE_INSTANT;
+      window.mockCallData.mediaType = body.mediaType || "video";
+      
+      // For callee: body.role is the CALLER's role, we need the CALLEE's role
+      // In one-on-one: if caller is host, callee is attendee (and vice versa)
+      const calleeRole = body.role === 'host' ? 'attendee' : 'host';
+      window.mockCallData.currentUserRole = calleeRole;
+      window.mockCallData.currentUserSide = "callee";
+      
+      // Swap: current user is the callee, target user is the caller
+      window.mockCallData.currentUser = body.calleeData || window.mockCallData.currentUser;
+      window.mockCallData.targetUser = body.callerData || window.mockCallData.targetUser;
+      
+      console.log(`[CallHandler] [Callee] mockCallData populated - Caller role: ${body.role}, Callee role: ${calleeRole}`, window.mockCallData);
+    }
+    
+    // Initialize CamMic permissions system for callee
+    console.log('[CallHandler] [Callee] Initializing CamMic permissions system');
+    window.dispatchEvent(new CustomEvent('CamMic:Init'));
     
     // Set current side to callee
     CallHandler._currentSide = "callee";
@@ -1861,6 +2140,9 @@ static dipatchUI(state, substate = "none", payload = {}) {alert();
       })
     );
 
+    // Reset UI state tracking for new incoming call
+    CallHandler.resetUIState();
+    
     // 🔔 UI (callee) → incoming - determine if audio or video call
     const mediaType = body.mediaType || "video";
     const incomingState = mediaType === "audio" ? "callee:incomingAudioCall" : "callee:incomingVideoCall";
@@ -1871,12 +2153,25 @@ static dipatchUI(state, substate = "none", payload = {}) {alert();
       callerData: body.callerData,
       calleeData: body.calleeData,
     });
+    
+    // Format caller details for logging
     const callerName = body.callerData?.displayName || body.callerData?.username || body.callerId;
+    let callerDetailsStr = `User ID: ${body.callerId}`;
+    if (body.callerData) {
+      callerDetailsStr = [
+        `Display Name: ${body.callerData.displayName}`,
+        `Username: @${body.callerData.username}`,
+        `User ID: ${body.callerData.userId}`,
+        body.callerData.avatar ? `Avatar: ${body.callerData.avatar}` : null,
+        `Initials: ${body.callerData.initials}`
+      ].filter(Boolean).join(', ');
+    }
+    
     DebugLogger.addLog(
       "receiving call",
       "NOTICE",
       "handleSocketIncomingCall",
-      `📞 ${callerName} is calling you for ${mediaType} call`
+      `📞 ${callerName} is calling you for ${mediaType} call — Caller details: ${callerDetailsStr}`
     );
 
     // 25s TIMEOUT → ENDS FLOW FOR BOTH SIDES (callee side timer)
@@ -2110,6 +2405,186 @@ static dipatchUI(state, substate = "none", payload = {}) {alert();
       }`
     );
     
+    // Orchestrate cam/mic permissions for caller based on call type
+    console.log('[CallHandler] [Caller] [FIX v1.1] Call accepted - checking cam/mic permissions');
+    
+    const mediaType = window.mockCallData?.mediaType || 'video';
+    const isVideoCall = mediaType === 'video';
+    console.log('[CallHandler] [Caller] [FIX v1.1] Media type:', mediaType, 'isVideoCall:', isVideoCall);
+    
+    // Listen for when permissions are actually needed (ONLY fires if not granted)
+    const onShowWaiting = (ev) => {
+      console.log('[CallHandler] [Caller] [FIX v1.1] ⏳ CamMic:UI:ShowWaiting received - showing waiting UI NOW');
+      console.log('[CallHandler] [Caller] [FIX v1.1] Event detail:', ev.detail);
+      CallHandler.dipatchUI("caller:waitingForCamMicPermissions", "none", {
+        callerId: body.callerId,
+        calleeId: body.calleeId,
+        callerRole: body.callerRole,
+        calleeRole: body.calleeRole,
+      });
+      console.log('[CallHandler] [Caller] [FIX v1.1] ✅ UI transitioned to caller:waitingForCamMicPermissions');
+    };
+    
+    // Listen for permissions resolved (returns to callAccepted if we showed waiting)
+    const onPermissionsResolved = (ev) => {
+      const detail = ev.detail || {};
+      console.log('[CallHandler] [Caller] [FIX v1.1] 📺 CamMic:UI:PermissionsResolved received:', detail);
+      
+      // If we were in waiting state, return to callAccepted
+      if (CallHandler._currentUIState === 'caller:waitingForCamMicPermissions') {
+        console.log('[CallHandler] [Caller] [FIX v1.1] 📺 Current state is waitingForCamMicPermissions - returning to callAccepted');
+        CallHandler.dipatchUI("caller:callAccepted", "none", {
+          callerId: body.callerId,
+          calleeId: body.calleeId,
+          callerRole: body.callerRole,
+          calleeRole: body.calleeRole,
+        });
+        console.log('[CallHandler] [Caller] [FIX v1.1] ✅ UI transitioned back to caller:callAccepted');
+      } else {
+        console.log('[CallHandler] [Caller] [FIX v1.1] ⏭️ Current state is NOT waitingForCamMicPermissions, skipping UI change. Current state:', CallHandler._currentUIState);
+      }
+    };
+    
+    if (isVideoCall) {
+      // Video call: orchestrate both with no preview
+      console.log('[CallHandler] [Caller] [FIX v1.1] Video call - orchestrating both (no preview)');
+      
+      const onCallerComplete = (ev) => {
+        console.log('[CallHandler] [Caller] [FIX v1.1] 🔔 CamMic:Orchestrate:Complete received');
+        window.removeEventListener('CamMic:Orchestrate:Complete', onCallerComplete);
+        window.removeEventListener('CamMic:UI:ShowWaiting', onShowWaiting);
+        window.removeEventListener('CamMic:UI:PermissionsResolved', onPermissionsResolved);
+        console.log('[CallHandler] [Caller] [FIX v1.1] 🧹 Removed all event listeners');
+        
+        const detail = ev.detail || {};
+        console.log('[CallHandler] [Caller] [FIX v1.1] CamMic orchestration complete:', detail);
+        
+        // Check permission states
+        const camera = detail.permissions?.camera || 'unknown';
+        const microphone = detail.permissions?.microphone || 'unknown';
+        
+        console.log('[CallHandler] [Caller] [FIX v1.1] Permission states:', { camera, microphone });
+        console.log('[CallHandler] [Caller] [FIX v1.1] Current UI state:', CallHandler._currentUIState);
+        
+        // If permissions denied, show error and stay waiting
+        if (camera === 'denied' || microphone === 'denied') {
+          console.log('[CallHandler] [Caller] [FIX v1.1] ❌ Permissions denied - keeping waiting UI');
+          alert('❌ Camera/Microphone access denied. Please enable permissions in browser settings and try again.');
+          // Stay in permission waiting state (UI already showing)
+          return;
+        }
+        
+        // If permissions granted, proceed
+        if (camera === 'granted' && microphone === 'granted') {
+          console.log('[CallHandler] [Caller] [FIX v1.1] ✅ Both permissions granted');
+          console.log('[CallHandler] [Caller] [FIX v1.1] Current UI state before proceedToJoin:', CallHandler._currentUIState);
+          
+          // If we never showed waiting UI, we're still in callAccepted - that's correct!
+          if (CallHandler._currentUIState === 'caller:waitingForCamMicPermissions') {
+            console.log('[CallHandler] [Caller] [FIX v1.1] ⚠️ Still in waitingForCamMicPermissions - onPermissionsResolved should have handled this');
+          } else {
+            console.log('[CallHandler] [Caller] [FIX v1.1] ✅ Still in callAccepted (never showed waiting UI) - correct behavior!');
+          }
+          
+          // Continue with join flow (stays in callAccepted if we never showed waiting)
+          proceedToJoin();
+          return;
+        }
+        
+        // Unknown state - show warning but proceed
+        console.warn('[CallHandler] [Caller] [FIX v1.1] ⚠️ Unknown permission state - proceeding anyway');
+        alert('⚠️ Unable to verify camera/microphone permissions. Call may not work properly.');
+        proceedToJoin();
+      };
+      
+      // Listen for UI events (NEW system - same as callee)
+      console.log('[CallHandler] [Caller] [FIX v1.1] 📡 Registering listeners: CamMic:UI:ShowWaiting, CamMic:UI:PermissionsResolved, CamMic:Orchestrate:Complete');
+      window.addEventListener('CamMic:UI:ShowWaiting', onShowWaiting);
+      window.addEventListener('CamMic:UI:PermissionsResolved', onPermissionsResolved);
+      
+      // Listen for orchestration completion
+      window.addEventListener('CamMic:Orchestrate:Complete', onCallerComplete);
+      console.log('[CallHandler] [Caller] [FIX v1.1] ✅ All listeners registered');
+      
+      // Start orchestration
+      console.log('[CallHandler] [Caller] [FIX v1.1] 🚀 Dispatching CamMic:Orchestrate:Both:NoPreview');
+      window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Both:NoPreview'));
+      console.log('[CallHandler] [Caller] [FIX v1.1] ✅ Orchestration started - waiting for events...');
+      
+    } else {
+      // Audio call: orchestrate microphone only
+      console.log('[CallHandler] [Caller] [FIX v1.1] Audio call - orchestrating microphone only');
+      
+      const onCallerComplete = (ev) => {
+        console.log('[CallHandler] [Caller] [FIX v1.1] 🔔 CamMic:Orchestrate:Complete received (audio)');
+        window.removeEventListener('CamMic:Orchestrate:Complete', onCallerComplete);
+        window.removeEventListener('CamMic:UI:ShowWaiting', onShowWaiting);
+        window.removeEventListener('CamMic:UI:PermissionsResolved', onPermissionsResolved);
+        console.log('[CallHandler] [Caller] [FIX v1.1] 🧹 Removed all event listeners (audio)');
+        
+        const detail = ev.detail || {};
+        console.log('[CallHandler] [Caller] [FIX v1.1] Mic orchestration complete:', detail);
+        
+        // Check permission states
+        const microphone = detail.permissions?.microphone || 'unknown';
+        
+        console.log('[CallHandler] [Caller] [FIX v1.1] Microphone permission state:', microphone);
+        console.log('[CallHandler] [Caller] [FIX v1.1] Current UI state:', CallHandler._currentUIState);
+        
+        // If permission denied, show error and stay waiting
+        if (microphone === 'denied') {
+          console.log('[CallHandler] [Caller] [FIX v1.1] ❌ Microphone denied - keeping waiting UI');
+          alert('❌ Microphone access denied. Please enable permissions in browser settings and try again.');
+          // Stay in permission waiting state (UI already showing)
+          return;
+        }
+        
+        // If permission granted, proceed
+        if (microphone === 'granted') {
+          console.log('[CallHandler] [Caller] [FIX v1.1] ✅ Microphone permission granted');
+          console.log('[CallHandler] [Caller] [FIX v1.1] Current UI state before proceedToJoin:', CallHandler._currentUIState);
+          
+          // If we never showed waiting UI, we're still in callAccepted - that's correct!
+          if (CallHandler._currentUIState === 'caller:waitingForCamMicPermissions') {
+            console.log('[CallHandler] [Caller] [FIX v1.1] ⚠️ Still in waitingForCamMicPermissions - onPermissionsResolved should have handled this');
+          } else {
+            console.log('[CallHandler] [Caller] [FIX v1.1] ✅ Still in callAccepted (never showed waiting UI) - correct behavior!');
+          }
+          
+          // Continue with join flow (stays in callAccepted if we never showed waiting)
+          proceedToJoin();
+          return;
+        }
+        
+        // Unknown state - show warning but proceed
+        console.warn('[CallHandler] [Caller] [FIX v1.1] ⚠️ Unknown microphone permission state - proceeding anyway');
+        alert('⚠️ Unable to verify microphone permissions. Call may not work properly.');
+        proceedToJoin();
+      };
+      
+      // Listen for UI events (NEW system - same as callee)
+      console.log('[CallHandler] [Caller] [FIX v1.1] 📡 Registering listeners (audio): CamMic:UI:ShowWaiting, CamMic:UI:PermissionsResolved, CamMic:Orchestrate:Complete');
+      window.addEventListener('CamMic:UI:ShowWaiting', onShowWaiting);
+      window.addEventListener('CamMic:UI:PermissionsResolved', onPermissionsResolved);
+      
+      // Listen for orchestration completion
+      window.addEventListener('CamMic:Orchestrate:Complete', onCallerComplete);
+      console.log('[CallHandler] [Caller] [FIX v1.1] ✅ All listeners registered (audio)');
+      
+      // Start orchestration
+      console.log('[CallHandler] [Caller] [FIX v1.1] 🚀 Dispatching CamMic:Orchestrate:Microphone');
+      window.dispatchEvent(new CustomEvent('CamMic:Orchestrate:Microphone'));
+      console.log('[CallHandler] [Caller] [FIX v1.1] ✅ Orchestration started (audio) - waiting for events...');
+    }
+    
+    // Return early - join will happen in proceedToJoin()
+    console.log('[CallHandler] [Caller] [FIX v1.1] ⏸️ Returning early - join will happen in proceedToJoin()');
+    return;
+    
+    // Helper function to proceed with join after CamMic orchestration
+    function proceedToJoin() {
+      console.log('[CallHandler] [Caller] Proceeding with join after CamMic orchestration');
+    
     console.log(
       "[CallHandler] caller joinChimeMeeting with role",
       body.callerRole
@@ -2149,6 +2624,7 @@ static dipatchUI(state, substate = "none", payload = {}) {alert();
           })
         );
       });
+    } // End of proceedToJoin function
   }
 
   static handleSocketMeetingProblem(body) {
@@ -2538,72 +3014,256 @@ static dipatchUI(state, substate = "none", payload = {}) {alert();
 
   // ----------------------------------------------------------
   // Step: Check Cam/Mic before connecting
+  // NOTE: CamMic permissions are now handled by the new CamMicPermissionsUtility
+  // via orchestration events (CamMic:Orchestrate:Both, CamMic:Orchestrate:Microphone)
+  // This function is kept for compatibility but simplified
   // ----------------------------------------------------------
   static async ensureCamMicReady(callMode = "video") {
-    console.log("[CallHandler] ensureCamMicReady", { callMode });
-    return new Promise((resolve) => {
-      const requiresCamera = callMode !== "audio";
-      window.callMode = requiresCamera ? "videoCall" : "audioOnlyCall";
+    console.log("[CallHandler] ensureCamMicReady - delegating to new CamMic system", { callMode });
+    
+    // Set window.callMode for compatibility
+    const requiresCamera = callMode !== "audio";
+    window.callMode = requiresCamera ? "videoCall" : "audioOnlyCall";
+    
+    // New CamMic system handles permissions via orchestration events
+    // Just resolve immediately - orchestration happens in accept/join flows
+    return Promise.resolve(true);
+  }
 
-      const isSatisfied = (camera, microphone) => {
-        const camOk = !requiresCamera || camera === "granted";
-        const micOk = microphone === "granted";
-        return camOk && micOk;
-      };
-
-      // Determine current side for permission dispatches
-      const side = CallHandler._currentSide || "callee"; // Default to callee for safety
+  /* ====================================================================
+   * User Data Schema Validation
+   * ==================================================================== */
+  
+  static validateUserData(userData, label) {
+    const required = ['userId', 'username', 'displayName', 'initials', 'isCreator', 'isFan'];
+    const missing = required.filter(field => !userData || userData[field] === undefined);
+    
+    if (missing.length > 0) {
+      const error = `${label} missing required fields: ${missing.join(', ')}`;
+      DebugLogger.addLog("ready", "CRITICAL", "validateUserData", error);
+      alert(`❌ Call cannot start: ${error}`);
       
-      // Always show spinner first while checking
-      try {
-        const acceptedState = side === "caller" ? "caller:callAccepted" : "callee:callAccepted";
-        const detail = { state: acceptedState, substate: "none", ts: Date.now() };
-        document.dispatchEvent(new CustomEvent("chime-ui::state", { detail }));
-      } catch (_) {}
-
-      const proceedRequestIfNeeded = (camera, microphone) => {
-        if (isSatisfied(camera, microphone)) {
-          console.log("[CallHandler] Cam/Mic already granted");
-          resolve(true);
-          return;
-        }
-        // Switch to permission UI only when missing
-        try {
-          const permissionState = side === "caller" ? "caller:waitingForCamMicPermissions" : "callee:waitingForCamMicPermissions";
-          const d = { state: permissionState, substate: "", ts: Date.now() };
-          document.dispatchEvent(new CustomEvent("chime-ui::state", { detail: d }));
-        } catch (_) {}
-        // Request needed devices
-        if (requiresCamera) {
-          CamMicPermissionsUtility.emit("CamMic:Request:Both");
-        } else {
-          CamMicPermissionsUtility.emit("CamMic:Request:Microphone");
-        }
-      };
-
-      // First check
-      CamMicPermissionsUtility.checkPermissions().then(({ camera, microphone }) => {
-        proceedRequestIfNeeded(camera, microphone);
+      // End call due to schema error
+      this.dipatchUI("ended", "schema-error", { 
+        reason: error,
+        missingFields: missing 
       });
+      
+      if (window.chimeHandler) {
+        chimeHandler.handleDisconnect();
+      }
+      
+      return false;
+    }
+    
+    // Validate that isCreator and isFan are opposites
+    if (userData.isCreator === userData.isFan) {
+      const error = `${label} invalid: isCreator and isFan must be opposites (one true, one false)`;
+      DebugLogger.addLog("ready", "CRITICAL", "validateUserData", error);
+      alert(`❌ Call cannot start: ${error}`);
+      return false;
+    }
+    
+    console.log(`[CallHandler] ✅ ${label} validated - ${userData.isCreator ? 'Creator' : 'Fan'}`);
+    return true;
+  }
 
-      // Keep listening until granted
-      const onChecked = (ev) => {
-        const cam = ev.detail?.camera || "error";
-        const mic = ev.detail?.microphone || "error";
-        if (isSatisfied(cam, mic)) {
-          console.log("[CallHandler] Cam/Mic ready event received");
-          window.removeEventListener("CamMic:Permissions:Checked", onChecked);
-          // Back to accepted state while proceeding
-          try {
-            const acceptedState = side === "caller" ? "caller:callAccepted" : "callee:callAccepted";
-            const d2 = { state: acceptedState, substate: "none", ts: Date.now() };
-            document.dispatchEvent(new CustomEvent("chime-ui::state", { detail: d2 }));
-          } catch (_) {}
-          resolve(true);
-        }
-      };
-      window.addEventListener("CamMic:Permissions:Checked", onChecked);
+  /* ====================================================================
+   * Grace Period Handlers
+   * ==================================================================== */
+  
+  static handleGracePeriodStart() {
+    if (!window.mockCallData) {
+      console.error('[CallHandler] mockCallData not initialized');
+      return;
+    }
+    
+    window.mockCallData.isInGrace = true;
+    
+    DebugLogger.addLog("connected", "NOTICE", "handleGracePeriodStart", 
+      "Grace period started - disabling audio/video for ALL USERS in one-on-one call");
+    
+    alert("⏳ Grace period started! Video and audio disabled for ALL USERS, chat remains available.");
+    
+    // Broadcast grace period start to ALL participants via socket (CRITICAL: One-on-one = both users affected)
+    const meetingId = window.mockCallData.callType || 'current-meeting';
+    SocketHandler.sendSocketMessage({
+      flag: 'grace:start',
+      payload: {
+        meetingId: meetingId,
+        broadcast: true,
+        message: 'Grace period started - all participants media disabled'
+      }
     });
+    
+    // Dispatch grace start event locally
+    this.dipatchUI("connected", "grace", { 
+      graceActive: true,
+      message: "Grace period active for all participants" 
+    });
+    
+    // Force disable audio/video locally (initiator)
+    if (window.chimeHandler && typeof chimeHandler.forceControlsOff === 'function') {
+      chimeHandler.forceControlsOff();
+    }
+    
+    console.log('[CallHandler] ⏸️ Grace period broadcast sent - ALL participants will be affected (media disabled)');
+  }
+
+  static handleGracePeriodResume() {
+    if (!window.mockCallData) {
+      console.error('[CallHandler] mockCallData not initialized');
+      return;
+    }
+    
+    window.mockCallData.isInGrace = false;
+    
+    DebugLogger.addLog("connected", "NOTICE", "handleGracePeriodResume",
+      "Resuming from grace period - re-enabling media for ALL USERS in one-on-one call");
+    
+    // Broadcast grace period resume to ALL participants via socket (CRITICAL: One-on-one = both users affected)
+    const meetingId = window.mockCallData.callType || 'current-meeting';
+    SocketHandler.sendSocketMessage({
+      flag: 'grace:resume',
+      payload: {
+        meetingId: meetingId,
+        broadcast: true,
+        message: 'Grace period resumed - all participants media restored'
+      }
+    });
+    
+    // Dispatch resume event locally
+    this.dipatchUI("connected", "active", {
+      graceActive: false,
+      message: "Call resumed for all participants"
+    });
+    
+    // Re-enable audio locally (initiator)
+    if (window.chimeHandler && typeof chimeHandler.forceControlsOn === 'function') {
+      chimeHandler.forceControlsOn();
+    }
+    
+    // Dispatch timer restart event (applies to all)
+    window.dispatchEvent(new CustomEvent("call-timer:restart"));
+    
+    // Show alert AFTER restoring feeds
+    alert("✅ Resumed from grace period! ALL USERS feeds restored and timer restarted.");
+    
+    console.log('[CallHandler] ▶️ Grace period resume broadcast sent - ALL participants will be affected (media restored)');
+  }
+
+  static handleGracePeriodEndFail() {
+    if (!window.mockCallData) {
+      console.error('[CallHandler] mockCallData not initialized');
+      return;
+    }
+    
+    window.mockCallData.isInGrace = false;
+    
+    DebugLogger.addLog("connected", "CRITICAL", "handleGracePeriodEndFail",
+      "Grace period ended - call terminated for ALL users with reason: grace-end");
+    
+    // Broadcast grace period end to ALL participants via socket (CRITICAL: One-on-one = both users disconnected)
+    const meetingId = window.mockCallData.callType || 'current-meeting';
+    SocketHandler.sendSocketMessage({
+      flag: 'grace:end',
+      payload: {
+        meetingId: meetingId,
+        broadcast: true,
+        reason: 'grace-end',
+        message: 'Call ended for all participants due to grace period failure'
+      }
+    });
+    
+    // Show alert first
+    alert("❌ Call ended for ALL USERS - Reason: grace-end");
+    
+    // End call with reason
+    this.dipatchUI("ended", "grace-end", {
+      reason: "grace-end",
+      message: "Call terminated due to grace period failure"
+    });
+    
+    // Trigger call end/disconnect (local user)
+    if (window.chimeHandler && typeof chimeHandler.handleDisconnect === 'function') {
+      chimeHandler.handleDisconnect();
+    }
+    
+    console.log('[CallHandler] Grace end broadcast sent - all participants will be disconnected with reason: grace-end');
+  }
+
+  /* ====================================================================
+   * Socket Handlers for Grace Period (received from other users)
+   * ==================================================================== */
+  
+  static handleSocketGraceStart(data) {
+    console.log('[CallHandler] [Socket] ⏸️ Received grace:start - APPLYING TO THIS USER', data);
+    
+    if (!window.mockCallData) return;
+    window.mockCallData.isInGrace = true;
+    
+    alert("⏳ Grace period started! Video and audio disabled for ALL USERS (including you).");
+    
+    // Force disable audio/video locally (CRITICAL: This user also affected)
+    if (window.chimeHandler && typeof chimeHandler.forceControlsOff === 'function') {
+      chimeHandler.forceControlsOff(); // This will also show the grace period UI
+    }
+    
+    console.log('[CallHandler] [Socket] ✅ Grace period applied - local user media disabled + Grace UI shown');
+    
+    CallHandler.dipatchUI("connected", "grace", { 
+      graceActive: true,
+      message: "Grace period active for all participants" 
+    });
+  }
+
+  static handleSocketGraceResume(data) {
+    console.log('[CallHandler] [Socket] ▶️ Received grace:resume - APPLYING TO THIS USER', data);
+    
+    if (!window.mockCallData) return;
+    window.mockCallData.isInGrace = false;
+    
+    // Re-enable audio (CRITICAL: This user also restored)
+    if (window.chimeHandler && typeof chimeHandler.forceControlsOn === 'function') {
+      chimeHandler.forceControlsOn(); // This will also hide the grace period UI
+    }
+    
+    console.log('[CallHandler] [Socket] ✅ Grace period resumed - local user media restored + Grace UI hidden');
+    
+    alert("✅ Grace period ended! Feeds restored for ALL USERS (including you).");
+    
+    CallHandler.dipatchUI("connected", "active", {
+      graceActive: false,
+      message: "Call resumed for all participants"
+    });
+  }
+
+  static handleSocketGraceEnd(data) {
+    console.log('[CallHandler] [Socket] ❌ Received grace:end - ENDING CALL FOR THIS USER', data);
+    
+    if (!window.mockCallData) return;
+    window.mockCallData.isInGrace = false;
+    
+    // Hide grace period UI before ending
+    if (window.chimeHandler && typeof chimeHandler._hideGracePeriodUI === 'function') {
+      chimeHandler._hideGracePeriodUI();
+    }
+    
+    const reason = data.payload?.reason || 'grace-end';
+    alert(`❌ Call ended for ALL USERS - Reason: ${reason}`);
+    
+    // End call with reason
+    CallHandler.dipatchUI("ended", "grace-end", {
+      reason: reason,
+      message: data.payload?.message || "Call terminated due to grace period failure"
+    });
+    
+    // Disconnect this user
+    if (window.chimeHandler && typeof chimeHandler.handleDisconnect === 'function') {
+      chimeHandler.handleDisconnect();
+    }
+    
+    console.log('[CallHandler] [Socket] Call ended for this user due to grace period failure - Reason:', reason);
   }
 }
 

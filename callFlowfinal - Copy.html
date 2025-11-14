@@ -1,0 +1,3311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <style>
+
+  </style>
+
+
+
+
+
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chime Meeting</title>
+
+  <!-- Relative paths for local files -->
+  <!-- Debug Logger (must load first to hijack alerts) -->
+  <script src="./debugLogger.js"></script>
+  <!-- SocketHandler must be from external source (keep absolute) -->
+  <script src="https://playground.codelinden.com/webSocket/SocketHandler.js"></script>
+  <!-- Local files - relative paths -->
+  <script src="./callFlowHandler.js"></script>
+  <script src="./chimeHandler.js"></script>
+  <script src="./camMicPermissionsHandler.js"></script>
+  <script src="./coreChime.js"></script>
+
+  <!-- Chime SDK - Original working version with blur/background support -->
+  <script src="https://fs.codelinden.com/wp-content/plugins/fansocial/assets/chime-final-test/chime.min.js"></script>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- NEW COMPREHENSIVE VUE TEMPLATES - STYLES AND FONTS -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./style.css">
+  <script src="./script.js"></script>
+
+  <!-- Final Template Flow is driven by the ORIGINAL Vue instance (state/substate). -->
+  <!-- Load template/component bundles for reuse, but do NOT mount a second Vue app. -->
+  <script src="./vueComponents.js" defer></script>
+  <script src="./vueComponentTemplates.js" defer></script>
+  <script src="./vueComponentsMerch.js" defer></script>
+  <script src="./vueComponentsSettings.js" defer></script>
+  <script src="./vueComponentsCall.js" defer></script>
+  <script src="./vueComponentsVideoCall.js" defer></script>
+  <script src="./vueComponentsWaitingConnected.js" defer></script>
+  <script src="./vueComponentCamMicPermissions.js" defer></script>
+
+  <!-- Prosenjit Added those components -->
+  <script src="components/vueComponentCallWaiting.js" defer></script>
+  <script src="components/vueComponentMainCallVideo.js" defer></script> 
+  <script src="components/vueComponentRemoteParticipant.js" defer></script>
+  <script src="components/vueComponentBottomLeftInfo.js" defer></script>
+  <script src="components/vueComponentBottomCenterControls.js" defer></script>
+  <script src="components/vueComponentBottomRightControls.js" defer></script>
+  <script src="components/vueComponentBottomControls.js" defer></script>
+  <script src="components/vueComponentMobileHeader.js" defer></script>
+
+  <!-- Harwinder imported components -->
+  <script src="components/prejoin/vueComponentCamMicPermissions.js" defer></script>
+  <script src="components/prejoin/vueComponentsConnecting.js" defer></script>
+  <script src="components/prejoin/vueComponentsBackButton.js" defer></script>
+  <script src="components/prejoin/vueComponentsCameraMicControls.js" defer></script>
+  <script src="components/prejoin/vueComponentsUserHeader.js" defer></script>
+  <script src="components/prejoin/vueComponentsJoinCallButton.js" defer></script>
+  <script src="components/prejoin/vueComponentsBackgroundsEffects.js" defer></script>
+  <script src="components/prejoin/vueComponentsSettingsPanel.js" defer></script>
+  <script src="components/prejoin/vueComponentsMobileJoinButton.js" defer></script>
+
+
+  <style>
+    /* body{
+        overflow: hidden;
+      } */
+    * {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    *::-webkit-scrollbar {
+      display: none;
+    }
+
+    .meeting-col {
+      max-width: 400px;
+      margin: auto;
+    }
+
+
+    .section {
+      margin-bottom: 20px;
+    }
+
+    .person {
+      margin-bottom: 15px;
+    }
+
+    .feed {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #000;
+    }
+
+    input,
+    button,
+    select {
+      font: inherit;
+    }
+
+    video {
+      width: 100%;
+      max-width: 520px;
+      background: #000;
+      object-fit: cover;
+    }
+
+    [data-status] {
+      padding: 6px 8px;
+      display: inline-block;
+    }
+
+    [data-status="connecting"] {
+      background: #d1fae5;
+    }
+
+    [data-status="connected"] {
+      background: #bbf7d0;
+    }
+
+    [data-status="disconnected"] {
+      background: #fecaca;
+    }
+
+    [data-q] {
+      height: 6px;
+      background: #ddd;
+      max-width: 520px;
+    }
+
+    [data-q] i {
+      display: block;
+      height: 100%;
+      width: 100%;
+    }
+
+    [data-q][data-level="bad"] i {
+      background: #f87171;
+      width: 33%;
+    }
+
+    [data-q][data-level="fair"] i {
+      background: #facc15;
+      width: 66%;
+    }
+
+    [data-q][data-level="good"] i {
+      background: #34d399;
+      width: 100%;
+    }
+
+    [row] {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    [col] {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .statusline {
+      font-size: 12px;
+      opacity: 0.9;
+      max-width: 520px;
+    }
+
+    .statusline b {
+      font-weight: 600;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 6px;
+      margin-right: 6px;
+    }
+
+    .grid-tiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 8px;
+      max-width: 1040px;
+    }
+
+    #reaction-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3000;
+    }
+
+    .reaction-float {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%) scale(0.6);
+      font-size: 64px;
+      filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35));
+      opacity: 0;
+      animation: pop-float 1200ms ease-out forwards;
+    }
+
+    .avatar--shape--1 {
+      aspect-ratio: 1 / 1;
+      position: relative;
+      overflow: hidden;
+      border-radius: 25% 75% 50% 51% / 45% 65% 36% 55% !important;
+      width: 2.25rem;
+      height: 2.25rem;
+    }
+
+    .avatar--shape--1 img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    .aspect-344-198 {
+      aspect-ratio: 344.00 / 198.16;
+    }
+
+    .aspect-179-103 {
+      aspect-ratio: 179.00/103.11;
+    }
+
+    .bg-yellow1 {
+      background: linear-gradient(0deg, rgba(0, 0, 0, 0.10) 0%, rgba(0, 0, 0, 0.10) 100%), linear-gradient(0deg, rgba(255, 205, 41, 0.75) -3.06%, rgba(255, 205, 41, 0.00) 117.35%);
+    }
+
+    .selected-green {
+      border: 2px solid var(--Brand-green, #07F468) !important;
+    }
+
+    [data-icon-style="toggle"] img.black-chat-icon {
+      display: none;
+    }
+
+    [data-icon-style="toggle"].active img {
+      display: none;
+    }
+
+    [data-icon-style="toggle"].active img.black-chat-icon {
+      display: flex !important;
+    }
+
+    video {
+      background-color: red !important;
+    }
+
+    @keyframes pop-float {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.6);
+      }
+
+      20% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+
+      70% {
+        opacity: 1;
+        transform: translate(-50%, -58%) scale(1);
+      }
+
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -72%) scale(1.05);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ===== Vue 3 bridge (passive listener) ===== -->
+  <script src="https://unpkg.com/vue@3.4.31/dist/vue.global.prod.js"></script>
+
+  <!-- Original Debug/Control Interface and Final Template Flow (same Vue instance) -->
+  <div id="app">
+
+
+
+
+
+
+    <!-- start here Harwinder -->
+
+    <!-- start pre joined Harwinder -->
+  
+    <!-- end pre joined Harwinder -->
+
+
+    <!-- start joined Prosenjit -->
+    <div ref="callRoot" data-state="in-call" data-call-waiting="true"
+      class="w-full h-screen relative bg-cover bg-center bg-no-repeat bg-black/50 backdrop-blur-sm background-image">
+      <div class="w-full h-full flex">
+        <div class="_w-full flex-1 h-full inset-0 bg-black/50 backdrop-blur-lg lg:p-0 flex items-center gap-2 mx-auto">
+          <section class="flex-1 flex flex-col gap-2 h-full relative">
+            
+            <!-- Main Video Area -->
+            <div class="flex-1 relative rounded-card-xs bg-cover bg-center bg-black backdrop-blur-sm">
+              <!-- Call Waiting --->
+              <call-waiting
+                v-if="isWaiting"
+                user-initials="UN"
+                :waiting-handle="'@' + userName"
+              ></call-waiting>
+              <!-- /Call Waiting --->
+
+              <!-- Main call Video -->
+              <main-call-video v-else></main-call-video>
+              <!-- Main call Video -->
+            </div>
+
+            <!-- Remote Participant Video (bottom Right) -->
+            <remote-participant></remote-participant>
+
+            <!-- Mobile header -->
+            <mobile-header
+              meeting-time="November 5, 2025"
+              user-name="jennyben"
+              mode-text="Meeting with"
+              status-text="in 5 min"
+            ></mobile-header>
+
+            <!-- Bottom Controls -->
+            <bottom-controls user-initials="UN"></bottom-controls>
+          </section>
+        </div>
+      </div>
+    </div>
+    <!-- end joined Prosenjit -->
+
+
+    <div id="chime-call" data-meeting-state="ready" data-v-app="">
+      <div class="video-call-modal">
+        <header></header>
+        <main><!-- was v-show="meeting.status==='idle'" --><!-- Call-Me Card -->
+          <div class="w-full h-screen relative bg-cover bg-center bg-no-repeat bg-black/50 backdrop-blur-sm">
+            <div
+              class="relative rounded-md font-poppins text-base h-full w-full z-10 backdrop-blur-md bg-black/50 flex justify-center items-center">
+              <div class="absolute top-50 w-[580px] bg-white rounded-sm shadow-xl">
+                <div class="flex">
+                  <div class="rectangle w-1 bg-[#4640FF]"></div>
+                  <div class="content p-2 flex w-full flex-col">
+                    <div class="flex items-center gap-1 justify-between">
+                      <div class="p-1 text-gray-700 font-semibold" data-meeting-title=""> Call me and I will sing with
+                        you </div>
+                      <div class=""><img
+                          src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/dots-vertical.png"
+                          alt=""></div>
+                    </div><span class="p-1 font-medium text-gray-700" data-meeting-time="">November 5, 2025</span>
+                    <div class=" p-1 font-medium text-gray-700 hidden" style="display: none;">Timer: <span
+                        data-timer="">00:00</span></div>
+                    <div class="flex items-center gap-1"><span data-status-indicator=""
+                        class="bg-pink-500 rounded-full w-2 h-2"></span>
+                      <div data-timer-text="" class="p-1 text-xs font-semibold text-pink-600">in 5 min</div>
+                    </div>
+                    <div class="flex gap-2 w-full">
+                      <div data-join-call-btn=""
+                        class="btn1 z-10 py-[3px] px-2 gap-1 flex justify-center items-center w-1/2 rounded-lg bg-[#5549FF] cursor-pointer">
+                        <img
+                          src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/phone-incoming-02.png"
+                          alt=""><button data-join-call-button-audio=""
+                          class="text-white text-sm font-semibold w-full h-full"> Join (Audio Only) </button></div>
+                      <div data-join-call-btn=""
+                        class="btn1 z-10 py-[3px] px-2 gap-1 flex justify-center items-center w-1/2 rounded-lg bg-[#5549FF] cursor-pointer">
+                        <img
+                          src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/phone-incoming-02.png"
+                          alt=""><button data-join-call-button-audio=""
+                          class="text-white text-sm font-semibold w-full h-full"> Join (Audio&amp; Video) </button>
+                      </div>
+                      <div
+                        class="btn2 py-[3px] px-2 gap-1 flex rounded-lg justify-center items-center w-1/2 border-2 border-[#5549FF]">
+                        <img
+                          src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/dots-horizontal.png"
+                          alt=""><button class="text-[#5549FF] font-semibold">More options</button></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div><!-- was v-show="meeting.status==='grantPermissions'" -->
+          <div data-grant-root="" class="p-0"><!-- Spinner while checking -->
+            <div id="cm-loader" hidden="">
+              <div
+                class="absolute rounded-md h-full w-full connecting-overlay backdrop-blur bg-black/50 flex justify-center items-center">
+                <div role="status" class="flex justify-center items-center flex-col"><svg aria-hidden="true"
+                    class="lg:w-[150px] sm:w-[100px] w-[80px] lg:h-[150px] sm:h-[100px] h-[80px] text-gray-200 animate-spin dark:text-gray-600 fill-[#07F468]"
+                    viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                      d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
+                      fill="currentColor"></path>
+                    <path
+                      d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
+                      fill="currentFill"></path>
+                  </svg><span class="text-white mt-4 text-lg font-medium">Checking Permissions...</span></div>
+              </div>
+            </div>
+            <p id="cm-spin" hidden="">SPIN</p><!-- AFTER (cursor + single click handler; re-requests per state) -->
+            <div id="cm-permission-icons" hidden="" class="mt-2 space-y-2" onclick="(window.callMode==='audioOnlyCall'
+            ? CamMicPermissionsUtility.requestMicrophone()
+            : CamMicPermissionsUtility.requestCameraAndMicrophone())" style="cursor: pointer;">
+              <div id="cm-need-camera" hidden="">Camera permission required</div>
+              <div id="cm-need-microphone" hidden="">Microphone permission required</div>
+            </div><!-- Invisible buttons (kept for handler compatibility if needed) --><button id="cm-start-both"
+              hidden=""></button><button id="cm-start-camera" hidden=""></button><button id="cm-start-microphone"
+              hidden=""></button>
+            <div id="cm-device-select" hidden=""><label hidden="">Camera: <select
+                  id="cm-video-select"></select></label><br><label hidden="">Microphone: <select
+                  id="cm-audio-select"></select></label></div><button id="btn-check-perms" class="hidden">Check
+              Permissions</button><button id="btn-watch-perms" class="hidden">Watch Permission Changes</button><button
+              id="btn-camera" class="hidden">Request Camera Access</button><button id="btn-mic" class="hidden">Request
+              Microphone Access</button><button id="btn-both" class="hidden">Request Camera + Microphone
+              Access</button><button id="btn-list-devices" class="hidden">List Available Devices</button><button
+              id="btn-stop" class="hidden">Stop All Stream</button>
+            <div id="cm-loader" hidden="">🔄 Checking Permissions...</div><button id="cm-start-both"
+              class="hidden">Start Camera + Microphone</button><button id="cm-start-camera" class="hidden">Start Camera
+              Only</button><button id="cm-start-microphone" class="hidden">Start Microphone Only</button>
+            <div
+              class="w-full h-screen relative bg-cover bg-center bg-no-repeat bg-black/50 backdrop-blur-sm background-image">
+              <div
+                class="absolute rounded-md font-poppins text-base h-full w-full z-10 backdrop-blur-md bg-black/50 flex justify-center items-center">
+                <div
+                  class="lg:max-w-[616px] w-4/5 max-w-[375px] mx-auto absolute top-52 p-4 lg:w-auto bg-slate-950/90 backdrop-blur-sm rounded-lg shadow-xl">
+                  <div class="flex">
+                    <div class="content flex w-full flex-col">
+                      <div class="text-center text-[24px] text-white font-bold"> Please allow below permissions to start
+                        call: </div>
+                      <div class="flex gap-4 mt-6 items-center justify-center">
+                        <div class="flex items-center flex-col w-[132px] lg:w-[165px]"><img
+                            src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/camera-01.png"
+                            class="w-[48px] h-[48px] lg:w-[96px] lg:h-[96px]" alt="">
+                          <p class="text-brand-primary text-sm font-medium">Camera</p>
+                        </div>
+                        <div class="flex items-center flex-col w-[132px] lg:w-[165px]"><img
+                            src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/microphone-01.png"
+                            class="w-[48px] h-[48px] lg:w-[96px] lg:h-[96px]" alt=""><span
+                            class="text-brand-primary text-sm font-medium">Microphone</span></div>
+                      </div>
+                      <div class="flex w-full mt-6 lg:hidden gap-2">
+                        <div
+                          class="w-full bg-[#FFFFFF4D] font-medium text-[#07F468] text-center py-2 px-[9px] border border-[1.5px] border-[#07F468]">
+                          Cancel</div>
+                        <div class="w-full bg-[#07F468] text-black font-medium text-center py-2 px-[9px]">Settings</div>
+                      </div>
+                      <div class="lg:flex hidden flex-col justify-center mt-6">
+                        <div class="flex mt-2 items-center justify-center gap-2"><span
+                            class="text-brand-primary text-sm font-medium">Troubleshoot</span>
+                          <div class=""><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/arrow2_down.png"
+                              alt=""></div>
+                        </div>
+                        <div class="flex justify-center">
+                          <div class="flex items-center gap-[2px] mt-3"><span class="text-white text-xs font-medium">Use
+                              your camera and microphone(Chrome)</span>
+                            <div class=""><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/arrow-up-right.png"
+                                alt=""></div>
+                          </div>
+                        </div>
+                        <div class="flex justify-center">
+                          <div class="flex items-center gap-[2px] mt-3"><span
+                              class="text-white text-xs font-medium">Change Websites settings in Safari on Mac</span>
+                            <div class=""><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/arrow-up-right.png"
+                                alt=""></div>
+                          </div>
+                        </div>
+                        <div class="flex justify-center">
+                          <div class="flex items-center gap-[2px] mt-3"><span class="text-white text-xs font-medium">How
+                              to manage your camera and microphone permissions with Firefox</span>
+                            <div class=""><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/arrow-up-right.png"
+                                alt=""></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="absolute inset-0 bg-black/50 backdrop-blur-lg lg:p-2 flex items-end gap-2 mx-auto">
+                <section class="flex-1 flex flex-col gap-2 h-full relative">
+                  <div class="flex-1 relative rounded-card-xs bg-cover bg-center"><img
+                      src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/bg.png"
+                      class="absolute w-full h-full object-cover rounded-md">
+                    <div data-back-to-fansocial-button=""
+                      class="sm:w-[178px] justify-center w-10 w-10 sm:h-12 absolute top-6 sm:left-6 left-4 flex items-center gap-2 sm:pr-4 py-2 sm:pl-2 rounded-pill bg-black/50 backdrop-blur-sm"
+                      aria-label="Back to fansocial"><svg viewBox="0 0 32 32" fill="none"
+                        xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 drop-shadow-icon">
+                        <path d="M24 16H8M8 16L16 24M8 16L16 8" stroke="white" stroke-width="1.5" stroke-linecap="round"
+                          stroke-linejoin="round"></path>
+                      </svg><span class="text-white text-sm font-normal sm:block hidden">Back to fansocial</span></div>
+                    <div
+                      class="justify-center sm:h-12 absolute top-6 left-[70px] sm:hidden flex items-center gap-2 px-3 py-2 rounded-pill bg-black/50 backdrop-blur-sm"
+                      aria-label="Back to fansocial"><img
+                        src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/user.png"
+                        class="w-6 h-6 drop-shadow-icon" alt="Back arrow"><span
+                        class="text-white text-sm font-normal block sm:hidden">w/ UserName</span></div>
+                    <div class="sm:hidden flex items-center gap-2 absolute top-6 right-6">
+                      <div class="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center"
+                        aria-label="Earnings"><svg width="38" height="38" viewBox="0 0 38 38" fill="none"
+                          xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 object-cover">
+                          <g filter="url(#filter0_d_5_31388)">
+                            <path
+                              d="M21.0396 14.1359C20.2764 14.68 19.3424 15.0001 18.3337 15.0001C15.7563 15.0001 13.667 12.9107 13.667 10.3334C13.667 7.75609 15.7563 5.66675 18.3337 5.66675C20.0043 5.66675 21.4699 6.54464 22.2943 7.86427M11.0003 29.783H14.4807C14.9345 29.783 15.3855 29.837 15.8254 29.9449L19.5028 30.8386C20.3008 31.033 21.132 31.0519 21.9383 30.8953L26.0043 30.1042C27.0784 29.895 28.0664 29.3807 28.8408 28.6274L31.7175 25.829C32.539 25.0312 32.539 23.7367 31.7175 22.9375C30.9779 22.218 29.8066 22.137 28.9698 22.7472L25.6171 25.1932C25.137 25.5442 24.5527 25.7332 23.9519 25.7332H20.7143L22.7751 25.7331C23.9366 25.7331 24.8775 24.8179 24.8775 23.688V23.2789C24.8775 22.3407 24.2211 21.5227 23.2858 21.2959L20.1051 20.5224C19.5875 20.3969 19.0574 20.3334 18.5245 20.3334C17.2381 20.3334 14.9095 21.3985 14.9095 21.3985L11.0003 23.0333M29.667 11.6667C29.667 14.2441 27.5777 16.3334 25.0003 16.3334C22.423 16.3334 20.3337 14.2441 20.3337 11.6667C20.3337 9.08942 22.423 7.00008 25.0003 7.00008C27.5777 7.00008 29.667 9.08942 29.667 11.6667ZM5.66699 22.4667L5.66699 30.2001C5.66699 30.9468 5.66699 31.3202 5.81232 31.6054C5.94015 31.8563 6.14412 32.0603 6.395 32.1881C6.68022 32.3334 7.05359 32.3334 7.80032 32.3334H8.86699C9.61373 32.3334 9.9871 32.3334 10.2723 32.1881C10.5232 32.0603 10.7272 31.8563 10.855 31.6054C11.0003 31.3202 11.0003 30.9468 11.0003 30.2001V22.4667C11.0003 21.72 11.0003 21.3466 10.855 21.0614C10.7272 20.8105 10.5232 20.6066 10.2723 20.4787C9.9871 20.3334 9.61373 20.3334 8.86699 20.3334L7.80033 20.3334C7.05359 20.3334 6.68022 20.3334 6.39501 20.4787C6.14412 20.6066 5.94015 20.8105 5.81232 21.0614C5.66699 21.3466 5.66699 21.72 5.66699 22.4667Z"
+                              stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                          </g>
+                          <defs>
+                            <filter id="filter0_d_5_31388" x="-0.999756" y="-1" width="40" height="40"
+                              filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                              <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+                              <feColorMatrix in="SourceAlpha" type="matrix"
+                                values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"></feColorMatrix>
+                              <feOffset></feOffset>
+                              <feGaussianBlur stdDeviation="2"></feGaussianBlur>
+                              <feComposite in2="hardAlpha" operator="out"></feComposite>
+                              <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0">
+                              </feColorMatrix>
+                              <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_5_31388">
+                              </feBlend>
+                              <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_5_31388" result="shape">
+                              </feBlend>
+                            </filter>
+                          </defs>
+                        </svg></div>
+                      <div class="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center"
+                        aria-label="Earnings"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                          stroke-width="1.5" stroke="#fff" class="size-6">
+                          <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z">
+                          </path>
+                        </svg></div>
+                    </div>
+                  </div>
+                  <div
+                    class="sm:bg-transparent bg-black/50 flex sm:gap-0 gap-4 justify-between left-0 right-0 sm:rounded-none rounded-full items-center sm:relative absolute sm:bottom-0 bottom-8 sm:w-full w-[95%] sm:mx-0 mx-auto md:px-0 px-4 py-2">
+                    <div class="sm:flex hidden items-center gap-4">
+                      <div class="w-16 h-16 flex-shrink-0"><img
+                          src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/user.png"
+                          class="w-full h-full object-cover rounded-full"></div>
+                      <div class="flex-1">
+                        <div class="flex items-center gap-1"><span
+                            class="text-white text-sm font-medium truncate">[[mode_text]] [[userName]]</span><svg
+                            viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
+                            class="w-5 h-5 flex-shrink-0">
+                            <path d="M12 16V12M12 8H12.01" stroke="white" stroke-width="2" stroke-linecap="round"
+                              stroke-linejoin="round"></path>
+                            <path
+                              d="M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"
+                              stroke="white" stroke-width="2"></path>
+                          </svg></div>
+                        <div class="flex xl:flex-row flex-col xl:items-center items-start gap-2 mt-1"><span
+                            class="text-white text-base font-medium">9:00pm-9:15pm</span>
+                          <div class="flex items-center gap-1 px-1.5 justify-center rounded-pill bg-[#5549FF] h-[18px]">
+                            <div class="w-2 h-2 rounded-full bg-white"></div><span
+                              class="text-white text-xs font-medium">in 5 min</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div><!-- Main control buttons -->
+                    <div
+                      class="hidden sm:flex items-center sm:gap-4 gap-3 flex-1 sm:justify-center lg:relative sm:absolute relative lg:bottom-0 left-0 right-0 sm:bottom-[120px] lg:mx-0 mx-auto lg:w-auto md:w-[calc(100%-424px)] sm:w-full">
+                      <div
+                        class="xl:w-17 xl:h-17 w-12 h-12 min-w-12 rounded-full bg-white/75 flex items-center justify-center"
+                        aria-label="Toggle camera"><svg viewBox="0 0 32 32" fill="none"
+                          xmlns="http://www.w3.org/2000/svg" class="w-8 h-8">
+                          <path
+                            d="M29.3334 11.9086C29.3334 11.1008 29.3334 10.6969 29.1737 10.5099C29.0351 10.3477 28.8272 10.2615 28.6144 10.2783C28.3693 10.2976 28.0837 10.5832 27.5125 11.1543L22.6667 16.0001L27.5125 20.8458C28.0837 21.417 28.3693 21.7026 28.6144 21.7219C28.8272 21.7386 29.0351 21.6525 29.1737 21.4902C29.3334 21.3032 29.3334 20.8993 29.3334 20.0916V11.9086Z"
+                            stroke="#0C111D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                          <path
+                            d="M2.66675 13.0667C2.66675 10.8265 2.66675 9.70643 3.10272 8.85079C3.48622 8.09814 4.09814 7.48622 4.85079 7.10272C5.70643 6.66675 6.82654 6.66675 9.06675 6.66675H16.2667C18.507 6.66675 19.6271 6.66675 20.4827 7.10272C21.2354 7.48622 21.8473 8.09814 22.2308 8.85079C22.6667 9.70643 22.6667 10.8265 22.6667 13.0667V18.9334C22.6667 21.1736 22.6667 22.2937 22.2308 23.1494C21.8473 23.902 21.2354 24.5139 20.4827 24.8974C19.6271 25.3334 18.507 25.3334 16.2667 25.3334H9.06675C6.82654 25.3334 5.70643 25.3334 4.85079 24.8974C4.09814 24.5139 3.48622 23.902 3.10272 23.1494C2.66675 22.2937 2.66675 21.1736 2.66675 18.9334V13.0667Z"
+                            stroke="#0C111D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg></div>
+                      <div
+                        class="xl:w-17 xl:h-17 w-12 h-12 min-w-12 rounded-full bg-white/75 flex items-center justify-center"
+                        aria-label="Toggle microphone"><svg viewBox="0 0 32 32" fill="none"
+                          xmlns="http://www.w3.org/2000/svg" class="w-8 h-8">
+                          <path
+                            d="M25.3334 13.3334V16.0001C25.3334 21.1547 21.1547 25.3334 16.0001 25.3334M6.66675 13.3334V16.0001C6.66675 21.1547 10.8454 25.3334 16.0001 25.3334M16.0001 25.3334V29.3334M10.6667 29.3334H21.3334M16.0001 20.0001C13.7909 20.0001 12.0001 18.2092 12.0001 16.0001V6.66675C12.0001 4.45761 13.7909 2.66675 16.0001 2.66675C18.2092 2.66675 20.0001 4.45761 20.0001 6.66675V16.0001C20.0001 18.2092 18.2092 20.0001 16.0001 20.0001Z"
+                            stroke="#0C111D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg></div>
+                    </div><!-- Additional action buttons -->
+                    <div class="flex items-center sm:gap-4 gap-3 sm:justify-end justify-between sm:w-auto w-full">
+                      <div
+                        class="xl:w-17 xl:h-17 w-12 h-12 min-w-12 rounded-full bg-white/75 sm:hidden flex items-center justify-center"
+                        aria-label="Toggle camera"><svg viewBox="0 0 32 32" fill="none"
+                          xmlns="http://www.w3.org/2000/svg" class="w-8 h-8">
+                          <path
+                            d="M29.3334 11.9086C29.3334 11.1008 29.3334 10.6969 29.1737 10.5099C29.0351 10.3477 28.8272 10.2615 28.6144 10.2783C28.3693 10.2976 28.0837 10.5832 27.5125 11.1543L22.6667 16.0001L27.5125 20.8458C28.0837 21.417 28.3693 21.7026 28.6144 21.7219C28.8272 21.7386 29.0351 21.6525 29.1737 21.4902C29.3334 21.3032 29.3334 20.8993 29.3334 20.0916V11.9086Z"
+                            stroke="#0C111D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                          <path
+                            d="M2.66675 13.0667C2.66675 10.8265 2.66675 9.70643 3.10272 8.85079C3.48622 8.09814 4.09814 7.48622 4.85079 7.10272C5.70643 6.66675 6.82654 6.66675 9.06675 6.66675H16.2667C18.507 6.66675 19.6271 6.66675 20.4827 7.10272C21.2354 7.48622 21.8473 8.09814 22.2308 8.85079C22.6667 9.70643 22.6667 10.8265 22.6667 13.0667V18.9334C22.6667 21.1736 22.6667 22.2937 22.2308 23.1494C21.8473 23.902 21.2354 24.5139 20.4827 24.8974C19.6271 25.3334 18.507 25.3334 16.2667 25.3334H9.06675C6.82654 25.3334 5.70643 25.3334 4.85079 24.8974C4.09814 24.5139 3.48622 23.902 3.10272 23.1494C2.66675 22.2937 2.66675 21.1736 2.66675 18.9334V13.0667Z"
+                            stroke="#0C111D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg></div>
+                      <div
+                        class="xl:w-17 xl:h-17 w-12 h-12 min-w-12 rounded-full bg-white/75 sm:hidden flex items-center justify-center"
+                        aria-label="Toggle microphone"><svg viewBox="0 0 32 32" fill="none"
+                          xmlns="http://www.w3.org/2000/svg" class="w-8 h-8">
+                          <path
+                            d="M25.3334 13.3334V16.0001C25.3334 21.1547 21.1547 25.3334 16.0001 25.3334M6.66675 13.3334V16.0001C6.66675 21.1547 10.8454 25.3334 16.0001 25.3334M16.0001 25.3334V29.3334M10.6667 29.3334H21.3334M16.0001 20.0001C13.7909 20.0001 12.0001 18.2092 12.0001 16.0001V6.66675C12.0001 4.45761 13.7909 2.66675 16.0001 2.66675C18.2092 2.66675 20.0001 4.45761 20.0001 6.66675V16.0001C20.0001 18.2092 18.2092 20.0001 16.0001 20.0001Z"
+                            stroke="#0C111D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg></div>
+                    </div>
+                  </div>
+                </section>
+                <aside class="w-40 h-full rounded-card shadow-control md:flex hidden flex-col">
+                  <!-- Settings Header & Content -->
+                  <div class="p-4 flex flex-col gap-4 flex-1">
+                    <div class="flex flex-col gap-4">
+                      <div class="flex flex-col">
+                        <div class="h-6 flex items-center"><svg width="34" height="34" viewBox="0 0 34 34" fill="none"
+                            xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 object-cover">
+                            <g filter="url(#filter0_d_5_31392)">
+                              <path
+                                d="M11.0002 17H11.0136M17.0002 17H17.0136M23.0002 17H23.0136M17.0002 29C23.6277 29 29.0002 23.6274 29.0002 17C29.0002 10.3726 23.6277 5 17.0002 5C10.3728 5 5.00024 10.3726 5.00024 17C5.00024 18.5962 5.31189 20.1196 5.87766 21.5127C5.98594 21.7793 6.04008 21.9126 6.06424 22.0204C6.08787 22.1258 6.09651 22.2038 6.09652 22.3118C6.09653 22.4223 6.07649 22.5426 6.03639 22.7831L5.24575 27.527C5.16295 28.0238 5.12155 28.2721 5.19859 28.4518C5.26602 28.609 5.39129 28.7342 5.54849 28.8017C5.7281 28.8787 5.97649 28.8373 6.47326 28.7545L11.2171 27.9639C11.4577 27.9238 11.578 27.9037 11.6884 27.9037C11.7964 27.9037 11.8745 27.9124 11.9799 27.936C12.0876 27.9602 12.2209 28.0143 12.4876 28.1226C13.8806 28.6884 15.4041 29 17.0002 29ZM11.6669 17C11.6669 17.3682 11.3684 17.6667 11.0002 17.6667C10.6321 17.6667 10.3336 17.3682 10.3336 17C10.3336 16.6318 10.6321 16.3333 11.0002 16.3333C11.3684 16.3333 11.6669 16.6318 11.6669 17ZM17.6669 17C17.6669 17.3682 17.3684 17.6667 17.0002 17.6667C16.6321 17.6667 16.3336 17.3682 16.3336 17C16.3336 16.6318 16.6321 16.3333 17.0002 16.3333C17.3684 16.3333 17.6669 16.6318 17.6669 17ZM23.6669 17C23.6669 17.3682 23.3684 17.6667 23.0002 17.6667C22.6321 17.6667 22.3336 17.3682 22.3336 17C22.3336 16.6318 22.6321 16.3333 23.0002 16.3333C23.3684 16.3333 23.6669 16.6318 23.6669 17Z"
+                                stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                            </g>
+                            <defs>
+                              <filter id="filter0_d_5_31392" x="-2.99976" y="-3" width="40" height="40"
+                                filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                                <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+                                <feColorMatrix in="SourceAlpha" type="matrix"
+                                  values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"></feColorMatrix>
+                                <feOffset></feOffset>
+                                <feGaussianBlur stdDeviation="2"></feGaussianBlur>
+                                <feComposite in2="hardAlpha" operator="out"></feComposite>
+                                <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0">
+                                </feColorMatrix>
+                                <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_5_31392">
+                                </feBlend>
+                                <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_5_31392"
+                                  result="shape"></feBlend>
+                              </filter>
+                            </defs>
+                          </svg>
+                          <h3 class="text-gray-50 text-lg font-medium ml-2 mt-1">CHAT</h3>
+                        </div><!-- Receiver Message -->
+                        <div class="mt-4 max-h-[83.6vh] overflow-y-auto no-scrollbar">
+                          <div hidden="" class="bg-black/50 rounded-message-receiver px-5 py-2 w-max">
+                            <p class="text-white font-normal font-poppins text-base">Let me chat with you</p>
+                          </div>
+                          <div hidden="" class="mt-1 bg-black/50 rounded-message-receiver px-5 py-2 w-auto">
+                            <p class="text-white font-normal font-poppins text-base">Sorry that day was my birthday so i
+                              can not give to you</p>
+                          </div><!-- Sender Message -->
+                          <div hidden="" class="mt-1 bg-[#6b665d] rounded-message-sender px-5 py-2 w-max ml-auto">
+                            <p class="text-white font-normal font-poppins text-base">Hi</p>
+                          </div>
+                          <div hidden="" class="mt-1 bg-[#6b665d] rounded-message-sender px-5 py-2 w-max ml-auto">
+                            <p class="text-white font-normal font-poppins text-base">Can you hear me?</p>
+                          </div>
+                          <div hidden="" class="mt-1 bg-[#6b665d] rounded-message-sender px-5 py-2 w-max ml-auto">
+                            <p class="text-white font-normal font-poppins text-base">Can you hear me?</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div><!-- Chat Setting Section -->
+                  <div class="px-4 py-4 border-t border-[#6b665d]">
+                    <div class="flex justify-between items-center py-2 w-full text-left" aria-expanded="false">
+                      <div class="flex items-center gap-2"><input type="text" placeholder="Message..."
+                          class="placeholder:text-white text-white text-base font-normal font-poppins px-4 py-2 w-full bg-transparent outline-none">
+                      </div>
+                      <div class="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                          viewBox="0 0 24 24" stroke-width="1.5" stroke="#fff" class="w-[26px] h-[26px]">
+                          <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M21 11.25v8.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 1 0 9.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1 1 14.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z">
+                          </path>
+                        </svg><svg width="38" height="38" viewBox="0 0 38 38" fill="none"
+                          xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 object-cover">
+                          <g filter="url(#filter0_d_5_31390)">
+                            <path
+                              d="M23.0003 15.0001H23.0137M15.0003 15.0001H15.0137M32.3337 19.0001C32.3337 26.3639 26.3641 32.3334 19.0003 32.3334C11.6365 32.3334 5.66699 26.3639 5.66699 19.0001C5.66699 11.6363 11.6365 5.66675 19.0003 5.66675C26.3641 5.66675 32.3337 11.6363 32.3337 19.0001ZM23.667 15.0001C23.667 15.3683 23.3685 15.6667 23.0003 15.6667C22.6321 15.6667 22.3337 15.3683 22.3337 15.0001C22.3337 14.6319 22.6321 14.3334 23.0003 14.3334C23.3685 14.3334 23.667 14.6319 23.667 15.0001ZM15.667 15.0001C15.667 15.3683 15.3685 15.6667 15.0003 15.6667C14.6321 15.6667 14.3337 15.3683 14.3337 15.0001C14.3337 14.6319 14.6321 14.3334 15.0003 14.3334C15.3685 14.3334 15.667 14.6319 15.667 15.0001ZM19.0003 26.3334C22.3343 26.3334 25.0003 23.8894 25.0003 21.6667H13.0003C13.0003 23.8894 15.6663 26.3334 19.0003 26.3334Z"
+                              stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                          </g>
+                          <defs>
+                            <filter id="filter0_d_5_31390" x="-0.999756" y="-1" width="40" height="40"
+                              filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                              <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+                              <feColorMatrix in="SourceAlpha" type="matrix"
+                                values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"></feColorMatrix>
+                              <feOffset></feOffset>
+                              <feGaussianBlur stdDeviation="2"></feGaussianBlur>
+                              <feComposite in2="hardAlpha" operator="out"></feComposite>
+                              <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0">
+                              </feColorMatrix>
+                              <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_5_31390">
+                              </feBlend>
+                              <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_5_31390" result="shape">
+                              </feBlend>
+                            </filter>
+                          </defs>
+                        </svg></div>
+                    </div>
+                  </div>
+                </aside>
+              </div>
+            </div>
+          </div><!-- was v-show="meeting.status==='initiating'" -->
+          <p>Initiating… <!-- MAP HERE --></p>
+          <!-- was v-show="meeting.status==='ready' || meeting.status==='joining'" -->
+          <div data-join2>
+            <div
+              class="w-full h-dvh max-h-dvh xl:h-screen relative bg-cover bg-center bg-no-repeat bg-black/50 backdrop-blur-sm">
+              <div
+                class="w-full h-dvh lg:h-full max-h-dvh xl:max-h-full inset-0 bg-black/50 backdrop-blur-lg lg:p-2 flex items-center gap-2 mx-auto">
+                <section class="flex-1 flex flex-col gap-2 relative h-dvh xl:h-full max-h-dvh xl:max-h-full">
+                  <div class="flex-1 relative rounded-card-xs bg-cover bg-center"><!--   <div data-attribute="tile_feed">
+                            <div data-remotes></div>
+                        </div> -->
+                    <div class="lg:h-[88.5vh] w-full h-screen"><!-- Local Video (if not main) -->
+                      <div class="person" id="local-video-sidebar" hidden="">
+                        <p><span class="handle">@local</span> — <span class="name">Local User</span></p>
+                        <div class="feed absolute w-full h-full object-cover rounded-md"><video autoplay=""
+                            playsinline="" data-local="" style="width: 100%; background: rgb(0, 0, 0);"></video>
+                          <div class="statusline" id="status-self"></div>
+                        </div>
+                      </div><!-- Show self feed here  --><video id="cm-video-preview" autoplay="" playsinline=""
+                        style="width: 100%; height: 100%; max-width: 100%; background: rgb(0, 0, 0); border-radius: 8px; object-fit: cover;"></video>
+                    </div>
+                    <!--          <img src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/bg.png" class="absolute w-full h-full object-cover rounded-md"> -->
+                  </div><!-- Mobile header for connecting state -->
+                  <div class="flex w-full top-2 absolute z-30 lg:hidden flex-col"><span
+                      class="text-white text-center text-sm font-medium block lg:hidden" data-call-type-text="">
+                      [[mode_text]] [[userName]] </span>
+                    <div class="flex justify-center gap-2"><span class="text-white text-xs font-medium"
+                        data-meeting-time="">November 5, 2025</span>
+                      <div class=" p-1 font-medium text-gray-700 hidden" style="display: none;">Timer: <span
+                          data-timer="">00:00</span></div>
+                      <div class="flex items-center gap-1 px-[8px] justify-center rounded-pill bg-[#5549FF] h-[18px]"
+                        data-status-indicator="">
+                        <div class="w-2 h-2 rounded-full bg-white" data-status-dot=""></div><span
+                          class="text-white text-xs font-medium" data-status-text="">in 5 min</span>
+                      </div>
+                    </div>
+                  </div><!-- Spinner overlay --><!-- Spinner overlay --><!--v-if--><!-- Back button -->
+                  <div data-back-to-fansocial-button=""
+                    class="sm:w-[178px] lg:flex hidden justify-center w-10 w-10 sm:h-12 absolute top-6 sm:left-6 left-4 flex items-center gap-2 sm:pr-4 py-2 sm:pl-2 rounded-pill bg-black/50 backdrop-blur-sm"
+                    aria-label="Back to fansocial cursor-pointer"><img
+                      src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/arrow-left.svg"
+                      class="w-6 h-6 drop-shadow-icon" alt="Back arrow"><span
+                      class="text-white text-sm font-normal sm:block hidden">Back to fansocial</span></div>
+                  <!-- Back button mobile -->
+                  <div data-back-to-fansocial-button=""
+                    class="lg:hidden flex justify-center w-10 w-10 sm:h-12 absolute top-2 sm:left-6 left-4 flex items-center cursor-pointer"
+                    aria-label="Back to fansocial"><img
+                      src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/chevron-left.svg"
+                      class="w-6 h-6 drop-shadow-icon" alt="Back arrow"></div>
+                  <!-- Bottom controls for connecting state -->
+                  <div
+                    class="flex flex-col lg:flex-row z-10 gap-2 justify-between left-0 right-0 lg:rounded-none rounded-full items-center lg:relative absolute bottom-4 lg:bottom-0 lg:w-full w-full lg:mx-0 lg:px-0 px-4 py-0">
+                    <div class="lg:flex hidden items-center gap-4 w-1/3">
+                      <div class="w-16 h-16 flex-shrink-0"><!-- Fallback Initial -->
+                        <div data-user-initial=""
+                          class="w-full h-full bg-purple-500 rounded-full flex items-center justify-center text-white text-xl font-bold avatar--shape--1"
+                          style="display: flex;"> UN </div>
+                      </div>
+                      <div class="flex-1">
+                        <div class="flex items-center gap-1"><span class="text-white text-sm font-medium truncate"
+                            data-call-type-text="">[[mode_text]] [[userName]]</span><svg viewBox="0 0 24 24" fill="none"
+                            xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 flex-shrink-0">
+                            <path d="M12 16V12M12 8H12.01" stroke="white" stroke-width="2" stroke-linecap="round"
+                              stroke-linejoin="round"></path>
+                            <path
+                              d="M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"
+                              stroke="white" stroke-width="2"></path>
+                          </svg></div>
+                        <div class="flex xl:flex-row flex-col xl:items-center items-start gap-2 mt-1"><span
+                            class="text-white text-base font-medium" data-meeting-time="">November 5, 2025</span>
+                          <div class=" p-1 font-medium text-gray-700 hidden" style="display: none;">Timer: <span
+                              data-timer="">00:00</span></div>
+                          <div
+                            class="flex items-center gap-1 px-1.5 justify-center rounded-pill bg-[#5549FF] w-[75px] h-[18px]"
+                            data-status-indicator="">
+                            <div class="w-2 h-2 rounded-full bg-white" data-status-dot=""></div><span
+                              class="text-white text-xs font-medium" data-status-text="">in 5 min</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div><!-- Main control buttons -->
+                    <div
+                      class="flex items-center sm:gap-4 gap-3 flex-1 sm:justify-center lg:relative relative pb-[0rem] left-0 right-0 lg:mx-0 mx-auto lg:w-1/3 md:w-[calc(100%-424px)] sm:w-full">
+                      <div data-top-toggle-camera=""
+                        class="xl:w-17 xl:h-17 w-12 h-12 min-w-12 rounded-full bg-white/10 flex items-center justify-center cursor-pointer"
+                        aria-label="Toggle camera"><img
+                          src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/camera-icon.svg"
+                          class="w-8 h-8 top-camera-enabled-icon" alt="Video camera"><img
+                          src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/disableCamera.svg"
+                          class="w-8 h-8 top-camera-disabled-icon hidden" alt="Video camera disabled"></div>
+                      <div data-top-toggle-microphone=""
+                        class="xl:w-17 xl:h-17 w-12 h-12 min-w-12 rounded-full bg-white/10 flex items-center justify-center cursor-pointer active"
+                        aria-label="Toggle microphone"><img
+                          src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/mic.svg"
+                          class="w-8 h-8 top-microphone-enabled-icon" alt="Microphone"><img
+                          src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/mute-microphone.svg"
+                          class="w-8 h-8 top-microphone-disabled-icon hidden" alt="Microphone disabled"></div>
+                    </div>
+                    <div class="w-1/3"></div><!-- Additional action buttons 
+                    <div class="flex items-center pb-[0] lg:gap-4 gap-3 lg:justify-end justify-center lg:w-auto w-full">
+                    <div class="xl:w-17 xl:h-17 w-12 h-12 min-w-12 rounded-full bg-white/75 lg:hidden flex items-center justify-center" aria-label="Toggle camera">
+                        <img src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/camera-icon.svg" class="w-8 h-8" alt="Video camera">
+                    </div>
+                    <div class="xl:w-17 xl:h-17 w-12 h-12 min-w-12 rounded-full bg-white/75 lg:hidden flex items-center justify-center" aria-label="Toggle microphone">
+                        <img src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/mic.svg" class="w-8 h-8" alt="Microphone">
+                    </div>
+
+                    <div class="xl:w-17 xl:h-17 w-12 h-12 min-w-12 rounded-full bg-white/5 shadow-control sm:flex hidden items-center justify-center" aria-label="Emoji reactions">
+                        <svg width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 object-cover">
+                        <g filter="url(#filter0_d_5_31390)">
+                            <path d="M23.0003 15.0001H23.0137M15.0003 15.0001H15.0137M32.3337 19.0001C32.3337 26.3639 26.3641 32.3334 19.0003 32.3334C11.6365 32.3334 5.66699 26.3639 5.66699 19.0001C5.66699 11.6363 11.6365 5.66675 19.0003 5.66675C26.3641 5.66675 32.3337 11.6363 32.3337 19.0001ZM23.667 15.0001C23.667 15.3683 23.3685 15.6667 23.0003 15.6667C22.6321 15.6667 22.3337 15.3683 22.3337 15.0001C22.3337 14.6319 22.6321 14.3334 23.0003 14.3334C23.3685 14.3334 23.667 14.6319 23.667 15.0001ZM15.667 15.0001C15.667 15.3683 15.3685 15.6667 15.0003 15.6667C14.6321 15.6667 14.3337 15.3683 14.3337 15.0001C14.3337 14.6319 14.6321 14.3334 15.0003 14.3334C15.3685 14.3334 15.667 14.6319 15.667 15.0001ZM19.0003 26.3334C22.3343 26.3334 25.0003 23.8894 25.0003 21.6667H13.0003C13.0003 23.8894 15.6663 26.3334 19.0003 26.3334Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </g>
+                        <defs>
+                            <filter id="filter0_d_5_31390" x="-0.999756" y="-1" width="40" height="40" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                            <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+                            <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"></feColorMatrix>
+                            <feOffset></feOffset>
+                            <feGaussianBlur stdDeviation="2"></feGaussianBlur>
+                            <feComposite in2="hardAlpha" operator="out"></feComposite>
+                            <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0"></feColorMatrix>
+                            </filter>
+                        </defs>
+                        </svg>
+                    </div>
+                    <div class="xl:w-17 xl:h-17 w-12 h-12 min-w-12 rounded-full bg-white/5 shadow-control flex items-center justify-center" aria-label="Chat">
+                        <img src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/chat-icon.svg">
+                    </div>
+                    </div>
+                    -->
+                    <div
+                      class="w-full lg:hidden bg-[#07F468] font-semibold text-lg py-[10px] px-4 text-center rounded-full leading-7 cursor-pointer">
+                      Join Call </div>
+                  </div>
+                </section><!-- Settings Sidebar for Connecting State -->
+                <aside data-sidebar-pannel="" data-call-settings-panel=""
+                  class="z-[99999] flex-col lg:w-40 py-4 h-full sm:h-screen lg:h-full md:h-screen absolute lg:relative overflow-y-auto g-2 bg-black/50 shadow-control lg:flex w-full backdrop-blur-md flex-col hidden lg:flex">
+                  <!-- Settings Header & Content -->
+                  <div
+                    class="text-white cursor-pointer lg:hidden flex items-end justify-end pr-3 absolute top-[0.25rem] right-[0]">
+                    <img
+                      src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/x-close.png"
+                      class="w-6 h-6 object-cover"></div>
+                  <div>
+                    <!-- <div class="flex flex-col py-2 border-b border-gray-600"> --><!-- Audio Video Accordion Header -->
+                    <header id="audioVideoAccordionHeader"
+                      class="p-4 hidden _flex justify-between items-center py-2 cursor-pointer hover:bg-white/5 transition-colors duration-200">
+                      <div class="flex items-center gap-2"><svg viewBox="0 0 24 24" fill="none"
+                          xmlns="http://www.w3.org/2000/svg" class="w-6 h-6">
+                          <path
+                            d="M9.39504 19.3711L9.97949 20.6856C10.1532 21.0768 10.4368 21.4093 10.7957 21.6426C11.1547 21.8759 11.5736 22.0001 12.0017 22C12.4298 22.0001 12.8488 21.8759 13.2077 21.6426C13.5667 21.4093 13.8502 21.0768 14.0239 20.6856L14.6084 19.3711C14.8164 18.9047 15.1664 18.5159 15.6084 18.26C16.0532 18.0034 16.5677 17.8941 17.0784 17.9478L18.5084 18.1C18.934 18.145 19.3636 18.0656 19.7451 17.8713C20.1265 17.6771 20.4434 17.3763 20.6573 17.0056C20.8714 16.635 20.9735 16.2103 20.951 15.7829C20.9285 15.3555 20.7825 14.9438 20.5306 14.5978L19.6839 13.4344C19.3825 13.0171 19.2214 12.5148 19.2239 12C19.2238 11.4866 19.3864 10.9864 19.6884 10.5711L20.535 9.40778C20.7869 9.06175 20.933 8.65007 20.9554 8.22267C20.9779 7.79528 20.8759 7.37054 20.6617 7C20.4478 6.62923 20.1309 6.32849 19.7495 6.13423C19.3681 5.93997 18.9385 5.86053 18.5128 5.90556L17.0828 6.05778C16.5722 6.11141 16.0576 6.00212 15.6128 5.74556C15.1699 5.48825 14.8199 5.09736 14.6128 4.62889L14.0239 3.31444C13.8502 2.92317 13.5667 2.59072 13.2077 2.3574C12.8488 2.12408 12.4298 1.99993 12.0017 2C11.5736 1.99993 11.1547 2.12408 10.7957 2.3574C10.4368 2.59072 10.1532 2.92317 9.97949 3.31444L9.39504 4.62889C9.18797 5.09736 8.83792 5.48825 8.39504 5.74556C7.95026 6.00212 7.43571 6.11141 6.92504 6.05778L5.4906 5.90556C5.06493 5.86053 4.63534 5.93997 4.25391 6.13423C3.87249 6.32849 3.55561 6.62923 3.34171 7C3.12753 7.37054 3.02549 7.79528 3.04798 8.22267C3.07046 8.65007 3.2165 9.06175 3.46838 9.40778L4.31504 10.5711C4.61698 10.9864 4.77958 11.4866 4.77949 12C4.77958 12.5134 4.61698 13.0137 4.31504 13.4289L3.46838 14.5922C3.2165 14.9382 3.07046 15.3499 3.04798 15.7773C3.02549 16.2047 3.12753 16.6295 3.34171 17C3.55582 17.3706 3.87274 17.6712 4.25411 17.8654C4.63548 18.0596 5.06496 18.1392 5.4906 18.0944L6.9206 17.9422C7.43127 17.8886 7.94581 17.9979 8.3906 18.2544C8.83513 18.511 9.18681 18.902 9.39504 19.3711Z"
+                            stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                          <path
+                            d="M11.9999 15C13.6568 15 14.9999 13.6569 14.9999 12C14.9999 10.3431 13.6568 9 11.9999 9C10.3431 9 8.99992 10.3431 8.99992 12C8.99992 13.6569 10.3431 15 11.9999 15Z"
+                            stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </svg>
+                        <h2 class="text-white lg:text-base text-sm font-medium"> Audio &amp; Video Setting </h2>
+                      </div><svg id="audioVideoAccordionIcon" viewBox="0 0 20 20" fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="w-5 h-5 drop-shadow-icon transition-transform duration-300 ease-in-out">
+                        <path d="M5 7.5L10 12.5L15 7.5" stroke="white" stroke-width="1.5" stroke-linecap="round"
+                          stroke-linejoin="round"></path>
+                      </svg>
+                    </header><!-- Audio Video Accordion Content -->
+                    <div id="audioVideoAccordionContent"
+                      class="hidden _flex px-4 flex-col gap-4 transition-all duration-300 ease-in-out overflow-hidden">
+                      <div class="flex flex-col gap-2">
+                        <div class="h-6 flex items-center">
+                          <h3 class="text-gray-50 text-sm font-semibold">CAMERA</h3>
+                        </div>
+                        <div class="relative">
+                          <div id="cameraDropdownTrigger"
+                            class="py-2 px-3 flex items-center border border-[#EAECF080] rounded-[6px] bg-black/50 justify-between cursor-pointer hover:bg-black/70 transition-colors">
+                            <div class="flex items-center gap-2 lg:flex-1 lg:w-auto w-[87%]"><svg viewBox="0 0 20 20"
+                                fill="none" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5">
+                                <path
+                                  d="M18.3334 7.44289C18.3334 6.93804 18.3334 6.68562 18.2336 6.56873C18.147 6.46731 18.017 6.41349 17.8841 6.42395C17.7308 6.43602 17.5523 6.61451 17.1953 6.97149L14.1667 10.0001L17.1953 13.0287C17.5523 13.3857 17.7308 13.5641 17.8841 13.5762C18.017 13.5867 18.147 13.5329 18.2336 13.4314C18.3334 13.3145 18.3334 13.0621 18.3334 12.5573V7.44289Z"
+                                  stroke="#F9FAFB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                </path>
+                                <path
+                                  d="M1.66675 8.16675C1.66675 6.76662 1.66675 6.06655 1.93923 5.53177C2.17892 5.06137 2.56137 4.67892 3.03177 4.43923C3.56655 4.16675 4.26662 4.16675 5.66675 4.16675H10.1667C11.5669 4.16675 12.2669 4.16675 12.8017 4.43923C13.2721 4.67892 13.6546 5.06137 13.8943 5.53177C14.1667 6.06655 14.1667 6.76662 14.1667 8.16675V11.8334C14.1667 13.2335 14.1667 13.9336 13.8943 14.4684C13.6546 14.9388 13.2721 15.3212 12.8017 15.5609C12.2669 15.8334 11.5669 15.8334 10.1667 15.8334H5.66675C4.26662 15.8334 3.56655 15.8334 3.03177 15.5609C2.56137 15.3212 2.17892 14.9388 1.93923 14.4684C1.66675 13.9336 1.66675 13.2335 1.66675 11.8334V8.16675Z"
+                                  stroke="#F9FAFB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                </path>
+                              </svg><span class="text-gray-200 lg:text-base text-sm font-medium truncate"
+                                data-camera-device="">FaceTime HD Camera</span></div><svg id="cameraDropdownIcon"
+                              viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"
+                              class="w-5 h-5 transition-transform duration-200">
+                              <path d="M4.5 6.75L9 11.25L13.5 6.75" stroke="#EAECF0" stroke-width="1.5"
+                                stroke-linecap="round" stroke-linejoin="round"></path>
+                            </svg>
+                          </div><!-- Camera Dropdown Menu -->
+                          <div id="cameraDropdownMenu"
+                            class="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-lg z-50 hidden max-h-64 overflow-y-auto">
+                            <div class="py-1"><!-- Options will be populated dynamically --></div>
+                            <div class="border-t border-gray-600 p-2"><button id="refreshCameraDevices"
+                                class="w-full px-3 py-2 text-xs text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors flex items-center justify-center gap-2"><svg
+                                  class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                  </path>
+                                </svg> Refresh Devices </button></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <div class="h-6 flex items-center">
+                          <h3 class="text-gray-50 text-sm font-semibold"> MICROPHONE </h3>
+                        </div>
+                        <div class="relative">
+                          <div id="microphoneDropdownTrigger"
+                            class="py-2 px-3 flex items-center border border-[#EAECF080] rounded-[6px] bg-black/50 justify-between cursor-pointer hover:bg-black/70 transition-colors">
+                            <div class="flex items-center gap-2 lg:flex-1 lg:w-auto w-[87%]"><svg viewBox="0 0 20 20"
+                                fill="none" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5">
+                                <path
+                                  d="M15.8332 8.33342V10.0001C15.8332 13.2217 13.2215 15.8334 9.99984 15.8334M4.1665 8.33342V10.0001C4.1665 13.2217 6.77818 15.8334 9.99984 15.8334M9.99984 15.8334V18.3334M6.6665 18.3334H13.3332M9.99984 12.5001C8.61913 12.5001 7.49984 11.3808 7.49984 10.0001V4.16675C7.49984 2.78604 8.61913 1.66675 9.99984 1.66675C11.3805 1.66675 12.4998 2.78604 12.4998 4.16675V10.0001C12.4998 11.3808 11.3805 12.5001 9.99984 12.5001Z"
+                                  stroke="#F9FAFB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                </path>
+                              </svg><span class="text-gray-200 lg:text-base text-sm font-medium truncate"
+                                data-microphone-device="">MacBook Pro Microphone <span class="lg:inline hidden">
+                                  (Built-in)</span></span></div><svg id="microphoneDropdownIcon" viewBox="0 0 18 18"
+                              fill="none" xmlns="http://www.w3.org/2000/svg"
+                              class="w-5 h-5 transition-transform duration-200">
+                              <path d="M4.5 6.75L9 11.25L13.5 6.75" stroke="#EAECF0" stroke-width="1.5"
+                                stroke-linecap="round" stroke-linejoin="round"></path>
+                            </svg>
+                          </div><!-- Microphone Dropdown Menu -->
+                          <div id="microphoneDropdownMenu"
+                            class="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-lg z-50 hidden max-h-64 overflow-y-auto">
+                            <div class="py-1"><!-- Options will be populated dynamically --></div>
+                            <div class="border-t border-gray-600 p-2"><button id="refreshMicrophoneDevices"
+                                class="w-full px-3 py-2 text-xs text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors flex items-center justify-center gap-2"><svg
+                                  class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                  </path>
+                                </svg> Refresh Devices </button></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <div class="h-6 flex items-center">
+                          <h3 class="text-gray-50 text-sm font-semibold">SPEAKER</h3>
+                        </div>
+                        <div class="relative">
+                          <div id="speakerDropdownTrigger"
+                            class="py-2 px-3 flex items-center border border-[#EAECF080] rounded-[6px] bg-black/50 justify-between cursor-pointer hover:bg-black/70 transition-colors">
+                            <div class="flex items-center gap-2 lg:flex-1 lg:w-auto w-[87%]"><svg viewBox="0 0 20 20"
+                                fill="none" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5">
+                                <path
+                                  d="M16.4567 4.16669C17.6378 5.80855 18.3334 7.82305 18.3334 10C18.3334 12.177 17.6378 14.1915 16.4567 15.8334M13.1212 6.66669C13.7802 7.61155 14.1667 8.76065 14.1667 10C14.1667 11.2394 13.7802 12.3885 13.1212 13.3334M8.02868 4.47142L5.39061 7.1095C5.24648 7.25362 5.17442 7.32569 5.09032 7.37722C5.01576 7.42291 4.93447 7.45658 4.84944 7.477C4.75354 7.50002 4.65162 7.50002 4.4478 7.50002H3.00008C2.53337 7.50002 2.30002 7.50002 2.12176 7.59085C1.96495 7.67074 1.83747 7.79823 1.75758 7.95503C1.66675 8.13329 1.66675 8.36664 1.66675 8.83335V11.1667C1.66675 11.6334 1.66675 11.8668 1.75758 12.045C1.83747 12.2018 1.96495 12.3293 2.12176 12.4092C2.30002 12.5 2.53337 12.5 3.00008 12.5H4.4478C4.65162 12.5 4.75354 12.5 4.84944 12.523C4.93447 12.5435 5.01576 12.5771 5.09032 12.6228C5.17442 12.6744 5.24648 12.7464 5.39061 12.8905L8.02868 15.5286C8.38566 15.8856 8.56415 16.0641 8.71739 16.0761C8.85036 16.0866 8.9803 16.0328 9.06692 15.9314C9.16675 15.8145 9.16675 15.5621 9.16675 15.0572V4.94283C9.16675 4.43798 9.16675 4.18556 9.06692 4.06867C8.9803 3.96725 8.85036 3.91343 8.71739 3.92389C8.56415 3.93595 8.38566 4.11444 8.02868 4.47142Z"
+                                  stroke="#F9FAFB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                </path>
+                              </svg><span class="text-gray-200 lg:text-base text-sm font-medium truncate"
+                                data-speaker-device="">MacBook Pro Speakers <span class="lg:inline hidden">
+                                  (Built-in)</span></span></div><svg id="speakerDropdownIcon" viewBox="0 0 18 18"
+                              fill="none" xmlns="http://www.w3.org/2000/svg"
+                              class="w-5 h-5 transition-transform duration-200">
+                              <path d="M4.5 6.75L9 11.25L13.5 6.75" stroke="#EAECF0" stroke-width="1.5"
+                                stroke-linecap="round" stroke-linejoin="round"></path>
+                            </svg>
+                          </div><!-- Speaker Dropdown Menu -->
+                          <div id="speakerDropdownMenu"
+                            class="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-lg z-50 hidden max-h-64 overflow-y-auto">
+                            <div class="py-1"><!-- Options will be populated dynamically --></div>
+                            <div class="border-t border-gray-600 p-2"><button id="refreshSpeakerDevices"
+                                class="w-full px-3 py-2 text-xs text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors flex items-center justify-center gap-2"><svg
+                                  class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                  </path>
+                                </svg> Refresh Devices </button></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="">
+                    <header id="backgroundsAccordionHeader"
+                      class="cursor-pointer hover:bg-white/5 flex justify-between items-center py-2 px-4 w-full text-left"
+                      aria-expanded="false">
+                      <div class="flex items-center gap-2"><svg viewBox="0 0 24 24" fill="none"
+                          xmlns="http://www.w3.org/2000/svg" class="w-6 h-6">
+                          <path
+                            d="M3.5 9.35198V7.65973L8.04425 3.11548H9.7365L3.5 9.35198ZM3.5 4.86548V3.40398L3.7885 3.11548H5.25L3.5 4.86548ZM15.598 6.31923C15.457 6.18073 15.3067 6.04481 15.147 5.91148C14.9875 5.77815 14.8269 5.6609 14.6652 5.55973L17.1095 3.11548H18.8018L15.598 6.31923ZM5.0385 15.1865L7.55975 12.6652C7.65708 12.8294 7.75383 12.9769 7.85 13.1077C7.94617 13.2384 8.05325 13.3608 8.17125 13.475L7.45 14.1962C7.06017 14.3001 6.655 14.4379 6.2345 14.6097C5.814 14.7814 5.41533 14.9736 5.0385 15.1865ZM17.0673 9.35773V9.32673C17.0544 9.0999 17.0214 8.86856 16.9682 8.63273C16.9151 8.39673 16.8449 8.17556 16.7578 7.96923L20.5 4.22698V5.92498L17.0673 9.35773ZM10.727 4.96548L12.5922 3.11548H14.2845L12.5308 4.86923C12.4179 4.84873 12.3103 4.83331 12.2078 4.82298C12.1051 4.81281 11.9973 4.80773 11.8845 4.80773C11.7012 4.81406 11.5083 4.83198 11.3058 4.86148C11.1033 4.89098 10.9103 4.92565 10.727 4.96548ZM3.5 13.8845V12.1922L6.9655 8.72698C6.91933 8.92315 6.88308 9.11764 6.85675 9.31048C6.83042 9.50348 6.81725 9.69165 6.81725 9.87498C6.81725 9.98781 6.82242 10.0955 6.83275 10.198C6.84292 10.3006 6.85825 10.4032 6.87875 10.5057L3.5 13.8845ZM19.5807 15.873C19.4537 15.7306 19.3156 15.5951 19.1663 15.4662C19.0169 15.3374 18.8551 15.214 18.6807 15.096L20.5 13.2767V14.969L19.5807 15.873ZM17.1328 13.8037C17.0929 13.7217 17.0483 13.6438 16.999 13.57C16.9497 13.4963 16.8987 13.4236 16.8462 13.3517C16.7796 13.2634 16.709 13.175 16.6345 13.0865C16.5602 12.998 16.4833 12.9178 16.4038 12.846L20.5 8.73448V10.4517L17.1328 13.8037ZM12 13.5C11.0347 13.5 10.21 13.158 9.526 12.474C8.842 11.79 8.5 10.9653 8.5 9.99998C8.5 9.03465 8.842 8.20998 9.526 7.52598C10.21 6.84198 11.0347 6.49998 12 6.49998C12.9653 6.49998 13.79 6.84198 14.474 7.52598C15.158 8.20998 15.5 9.03465 15.5 9.99998C15.5 10.9653 15.158 11.79 14.474 12.474C13.79 13.158 12.9653 13.5 12 13.5ZM12 12C12.55 12 13.0208 11.8041 13.4125 11.4125C13.8042 11.0208 14 10.55 14 9.99998C14 9.44998 13.8042 8.97915 13.4125 8.58748C13.0208 8.19581 12.55 7.99998 12 7.99998C11.45 7.99998 10.9792 8.19581 10.5875 8.58748C10.1958 8.97915 10 9.44998 10 9.99998C10 10.55 10.1958 11.0208 10.5875 11.4125C10.9792 11.8041 11.45 12 12 12ZM4.5 19.596V18.9077C4.5 18.3922 4.63367 17.9297 4.901 17.5202C5.16833 17.1106 5.52317 16.7936 5.9655 16.5692C6.79617 16.1551 7.72017 15.8092 8.7375 15.5317C9.75483 15.2542 10.8423 15.1155 12 15.1155C13.1577 15.1155 14.2452 15.2542 15.2625 15.5317C16.2798 15.8092 17.2038 16.1551 18.0345 16.5692C18.4705 16.7872 18.8238 17.1042 19.0943 17.5202C19.3648 17.9362 19.5 18.3987 19.5 18.9077V19.596C19.5 19.8538 19.4138 20.0689 19.2413 20.2412C19.0689 20.4137 18.8538 20.5 18.596 20.5H5.404C5.14617 20.5 4.93108 20.4137 4.75875 20.2412C4.58625 20.0689 4.5 19.8538 4.5 19.596ZM6.0155 19H17.9845C17.964 18.709 17.9057 18.4805 17.8095 18.3145C17.7135 18.1483 17.5539 18.0127 17.3307 17.9077C16.7179 17.6077 15.9634 17.3173 15.0673 17.0365C14.1711 16.7556 13.1487 16.6152 12 16.6152C10.8513 16.6152 9.82892 16.7556 8.93275 17.0365C8.03658 17.3173 7.28208 17.6077 6.66925 17.9077C6.45258 18.0127 6.29458 18.1508 6.19525 18.322C6.09592 18.4931 6.036 18.7191 6.0155 19Z"
+                            fill="white"></path>
+                        </svg><span class="text-white text-base font-medium">BACKGROUNDS &amp; EFFECTS</span></div><svg
+                        id="backgroundsAccordionIcon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"
+                        class="w-5 h-5 drop-shadow-icon">
+                        <path d="M5 7.5L10 12.5L15 7.5" stroke="white" stroke-width="1.5" stroke-linecap="round"
+                          stroke-linejoin="round"></path>
+                      </svg>
+                    </header>
+                    <div id="backgroundsAccordionContent" class="px-4">
+                      <div class="my-4">
+                        <p class="text-white font-medium text-base"> Blur Background </p>
+                        <div class="mt-[10px] grid grid-cols-4 gap-2">
+                          <div
+                            class="w-full text-sm font-medium border border-white/50 border-solid p-[10px] text-white rounded-md flex justify-center items-center cursor-pointer active"
+                            data-apply-background-filter-blur="none"> No Blur </div>
+                          <div
+                            class="w-full text-sm font-medium border border-white/50 border-solid p-[10px] text-white rounded-md flex justify-center items-center cursor-pointer"
+                            data-apply-background-filter-blur="low"> Low </div>
+                          <div
+                            class="w-full text-sm font-medium border border-white/50 border-solid p-[10px] text-white rounded-md flex justify-center items-center cursor-pointer"
+                            data-apply-background-filter-blur="medium"> Medium </div>
+                          <div
+                            class="w-full text-sm font-medium border border-white/50 border-solid p-[10px] text-white rounded-md flex justify-center items-center cursor-pointer"
+                            data-apply-background-filter-blur="high"> High </div>
+                        </div>
+                      </div>
+                      <div class="my-4">
+                        <p class="text-white font-medium text-base"> Virtual Background </p>
+                        <div class="mt-[10px] grid grid-cols-4 gap-2"><!-- <div
+                                    class="w-full text-sm font-medium border border-[#FFFFFF80] p-[10px] border-solid h-[72px] w-[86px] text-white rounded-xl flex justify-center items-center flex-col gap-2">
+                                    <svg class="block" width="20" height="20" viewBox="0 0 20 20" fill="none"
+                                        xmlns="http://www.w3.org/2000/svg">
+                                        <path
+                                            d="M19 13V14.2C19 15.8802 19 16.7202 18.673 17.362C18.3854 17.9265 17.9265 18.3854 17.362 18.673C16.7202 19 15.8802 19 14.2 19H5.8C4.11984 19 3.27976 19 2.63803 18.673C2.07354 18.3854 1.6146 17.9265 1.32698 17.362C1 16.7202 1 15.8802 1 14.2V13M15 6L10 1M10 1L5 6M10 1V13"
+                                            stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                        </path>
+                                    </svg>
+
+                                    <p>UPLOAD</p>
+                                </div> -->
+                          <div
+                            class="w-full text-sm font-medium border border-[#FFFFFF80] border-solid h-[72px] w-[86px] text-white rounded-xl flex justify-center items-center flex-col gap-2 cursor-pointer overflow-hidden"
+                            data-apply-background-filter-predefined="bg1"><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/backgrounds/bg1.jpg"
+                              class="h-full w-full object-cover"></div>
+                          <div
+                            class="w-full text-sm font-medium border border-[#FFFFFF80] border-solid h-[72px] w-[86px] text-white rounded-xl flex justify-center items-center flex-col gap-2r cursor-pointer overflow-hidden"
+                            data-apply-background-filter-predefined="bg2"><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/backgrounds/bg2.jpg"
+                              class="h-full w-full object-cover"></div>
+                          <div
+                            class="w-full text-sm font-medium border border-[#FFFFFF80] border-solid h-[72px] w-[86px] text-white rounded-xl flex justify-center items-center flex-col gap-2 cursor-pointer overflow-hidden"
+                            data-apply-background-filter-predefined="bg3"><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/backgrounds/bg3.jpg"
+                              class="h-full w-full object-cover"></div>
+                          <div
+                            class="w-full text-sm font-medium border border-[#FFFFFF80] border-solid h-[72px] w-[86px] text-white rounded-xl flex justify-center items-center flex-col gap-2 cursor-pointer overflow-hidden"
+                            data-apply-background-filter-predefined="bg4"><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/backgrounds/bg4.jpg"
+                              class="h-full w-full object-cover"></div>
+                          <div
+                            class="w-full text-sm font-medium border border-[#FFFFFF80] border-solid h-[72px] w-[86px] text-white rounded-xl flex justify-center items-center flex-col gap-2 cursor-pointer overflow-hidden"
+                            data-apply-background-filter-predefined="bg5"><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/backgrounds/bg5.jpg"
+                              class="h-full w-full object-cover"></div>
+                          <div
+                            class="w-full text-sm font-medium border border-[#FFFFFF80] border-solid h-[72px] w-[86px] text-white rounded-xl flex justify-center items-center flex-col gap-2 cursor-pointer overflow-hidden"
+                            data-apply-background-filter-predefined="bg6"><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/backgrounds/bg6.jpg"
+                              class="h-full w-full object-cover"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div><!-- Chat Setting Section -->
+                  <div class="p-4 absolute bottom-0 w-full">
+                    <div data-join-call-button=""
+                      class="w-full px-4 py-[10px] rounded-pill bg-green-500 shadow-button flex items-center justify-center cursor-pointer">
+                      <span class="text-gray-950 text-base font-semibold">JOIN CALL</span></div>
+                  </div>
+                  <div class="py-3 block sm:hidden"></div>
+                </aside>
+              </div>
+            </div>
+          </div><!-- was unconditional, already always visible -->
+          <div data-state="in-call"
+            class="w-full h-screen relative bg-cover bg-center bg-no-repeat bg-black/50 backdrop-blur-sm background-image">
+            <div class="w-full h-full flex">
+              <div
+                class="_w-full flex-1 h-full inset-0 bg-black/50 backdrop-blur-lg lg:p-0 flex items-center gap-2 mx-auto">
+                <section class="flex-1 flex flex-col gap-2 h-full relative">
+                  <div class="flex-1 relative rounded-card-xs bg-cover bg-center bg-black backdrop-blur-sm">
+                    <!-- Main Video Area -->
+                    <div data-attribute="tile_feed" class="w-full h-full lg:h-[88vh] xl:h-[88.5vh]">
+                      <div data-remotes="" class="w-full h-full h-[84vh] short-video-container"></div>
+                    </div><video id="cm-video-preview" autoplay="" playsinline=""
+                      style="width: 100px; max-width: 100%; background: rgb(0, 0, 0); border-radius: 8px; aspect-ratio: 16 / 9; object-fit: cover;"></video>
+                    <div class="text-white text-sm font-normal mt-2 sm:block hidden" data-waiting-text="">
+                      [[waitingText]] </div>
+                  </div><!-- <video
+                        data-main-video
+                        autoplay
+                        playsinline
+                        muted
+                        class="absolute w-full h-full object-cover rounded-md hidden"
+                        style="background: #000"
+                    ></video> --><!-- Participant Video (Top Right) --><video data-participant-video="" autoplay=""
+                    playsinline=""
+                    class="absolute hidden lg:flex right-1 lg:bottom-[120px] sm:bottom-20 bottom-[130px] rounded-card-sm sm:h-[156px] h-[260px] sm:w-[277px] w-[170px] z-10 object-cover hidden"
+                    style="background: rgb(0, 0, 0); display: none;"></video><!-- Remote Participant Video (Top Right) --><video
+                    data-remote-video="" autoplay="" playsinline=""
+                    class="absolute right-1 lg:bottom-[120px] sm:bottom-20 bottom-[130px] rounded-card-sm sm:h-[156px] h-[260px] sm:w-[277px] w-[170px] z-10 object-cover hidden"
+                    style="background: rgb(0, 0, 0); display: none;"></video><!-- Waiting for Participant (Top Right) -->
+                  <div
+                    class="custom-preview-left-side absolute flex right-[8px] lg:bottom-[120px] sm:bottom-20 bottom-[95px] rounded-card-sm lg:h-[156px] h-[120px] lg:w-[277px] w-[69px] z-[1000] flex justify-center items-center">
+                    <video data-main-video="" autoplay="" playsinline=""
+                      class="absolute w-full h-full object-cover rounded-md hidden"
+                      style="background: rgb(0, 0, 0);"></video></div>
+                  <!-- Background Image --><!-- Back button (Desktop) -->
+                  <div data-back-to-fansocial-button=""
+                    class="sm:w-[178px] hidden justify-center w-10 w-10 sm:h-12 absolute top-6 sm:left-6 left-4 flex items-center gap-2 sm:pr-4 py-2 sm:pl-2 rounded-pill bg-black/50 backdrop-blur-sm"
+                    aria-label="Back to fansocial"><img
+                      src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/arrow-left.svg"
+                      class="w-6 h-6 drop-shadow-icon" alt="Back arrow"><span
+                      class="text-white text-sm font-normal sm:block hidden">Back to fansocial</span></div>
+                  <!-- Back button (Mobile) -->
+                  <div data-back-to-fansocial-button=""
+                    class="justify-center hidden sm:h-12 absolute top-6 left-[70px] sm:hidden flex items-center gap-2 px-3 py-2 rounded-pill bg-black/50 backdrop-blur-sm"
+                    aria-label="Back to fansocial"><img
+                      src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/user.png"
+                      class="w-6 h-6 drop-shadow-icon" alt="Back arrow"><span
+                      class="text-white text-sm font-normal block sm:hidden">[[userName]]</span></div>
+                  <!-- Mobile header -->
+                  <div
+                    class="justify-center flex-col w-full sm:h-12 absolute top-0 sm:top-20 lg:hidden flex items-center gap-2 px-3 py-2 rounded-pill"
+                    aria-label="Back to fansocial">
+                    <div class="flex lg:hidden flex-col"><span
+                        class="text-white text-sm font-medium block text-center lg:hidden"
+                        data-call-type-text="">[[mode_text]] [[userName]]</span>
+                      <div class="flex items-center gap-2"><span class="text-[#FFFFFFB2] text-xs font-medium"
+                          data-meeting-time="">November 5, 2025</span>
+                        <div class=" p-1 font-medium text-gray-700 hidden" style="display: none;">Timer: <span
+                            data-timer="">00:00</span></div>
+                        <div class="flex items-center gap-1 px-2 justify-center rounded-pill bg-[#5549FF] h-[18px]"
+                          data-status-indicator="">
+                          <div class="w-2 h-2 rounded-full bg-white" data-status-dot=""></div><span
+                            class="text-white text-xs font-medium" data-status-text="">in 5 min</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="flex justify-center items-center flex-col"><img
+                        src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/user.png"
+                        class="w-[78px] h-[80px] mt-4 drop-shadow-icon bg-white call-mobile-avatar avatar--shape--1"
+                        alt="Back arrow"><span class="text-sm mt-4 text-white hidden">[[waitingText]]</span></div>
+                  </div><!-- Top right action buttons -->
+                  <div class="hidden flex items-center gap-2 absolute top-6 right-6">
+                    <div class="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center"
+                      aria-label="Earnings"><svg width="38" height="38" viewBox="0 0 38 38" fill="none"
+                        xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 object-cover">
+                        <g filter="url(#filter0_d_5_31388)">
+                          <path
+                            d="M21.0396 14.1359C20.2764 14.68 19.3424 15.0001 18.3337 15.0001C15.7563 15.0001 13.667 12.9107 13.667 10.3334C13.667 7.75609 15.7563 5.66675 18.3337 5.66675C20.0043 5.66675 21.4699 6.54464 22.2943 7.86427M11.0003 29.783H14.4807C14.9345 29.783 15.3855 29.837 15.8254 29.9449L19.5028 30.8386C20.3008 31.033 21.132 31.0519 21.9383 30.8953L26.0043 30.1042C27.0784 29.895 28.0664 29.3807 28.8408 28.6274L31.7175 25.829C32.539 25.0312 32.539 23.7367 31.7175 22.9375C30.9779 22.218 29.8066 22.137 28.9698 22.7472L25.6171 25.1932C25.137 25.5442 24.5527 25.7332 23.9519 25.7332H20.7143L22.7751 25.7331C23.9366 25.7331 24.8775 24.8179 24.8775 23.688V23.2789C24.8775 22.3407 24.2211 21.5227 23.2858 21.2959L20.1051 20.5224C19.5875 20.3969 19.0574 20.3334 18.5245 20.3334C17.2381 20.3334 14.9095 21.3985 14.9095 21.3985L11.0003 23.0333M29.667 11.6667C29.667 14.2441 27.5777 16.3334 25.0003 16.3334C22.423 16.3334 20.3337 14.2441 20.3337 11.6667C20.3337 9.08942 22.423 7.00008 25.0003 7.00008C27.5777 7.00008 29.667 9.08942 29.667 11.6667ZM5.66699 22.4667L5.66699 30.2001C5.66699 30.9468 5.66699 31.3202 5.81232 31.6054C5.94015 31.8563 6.14412 32.0603 6.395 32.1881C6.68022 32.3334 7.05359 32.3334 7.80032 32.3334H8.86699C9.61373 32.3334 9.9871 32.3334 10.2723 32.1881C10.5232 32.0603 10.7272 31.8563 10.855 31.6054C11.0003 31.3202 11.0003 30.9468 11.0003 30.2001V22.4667C11.0003 21.72 11.0003 21.3466 10.855 21.0614C10.7272 20.8105 10.5232 20.6066 10.2723 20.4787C9.9871 20.3334 9.61373 20.3334 8.86699 20.3334L7.80033 20.3334C7.05359 20.3334 6.68022 20.3334 6.39501 20.4787C6.14412 20.6066 5.94015 20.8105 5.81232 21.0614C5.66699 21.3466 5.66699 21.72 5.66699 22.4667Z"
+                            stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        </g>
+                        <defs>
+                          <filter id="filter0_d_5_31388" x="-0.999756" y="-1" width="40" height="40"
+                            filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                            <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+                            <feColorMatrix in="SourceAlpha" type="matrix"
+                              values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"></feColorMatrix>
+                            <feOffset></feOffset>
+                            <feGaussianBlur stdDeviation="2"></feGaussianBlur>
+                            <feComposite in2="hardAlpha" operator="out"></feComposite>
+                            <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0">
+                            </feColorMatrix>
+                            <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_5_31388">
+                            </feBlend>
+                            <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_5_31388" result="shape">
+                            </feBlend>
+                          </filter>
+                        </defs>
+                      </svg></div>
+                    <div class="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center"
+                      aria-label="Earnings"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                        stroke-width="1.5" stroke="#fff" class="size-6">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z">
+                        </path>
+                      </svg></div>
+                  </div><!-- Bottom controls -->
+                  <div
+                    class="w-full lg:bg-transparent lg:bottom-gradient-dark justify-between lg:p-4 flex md:gap-0 gap-4 justify-between left-0 right-0 md:rounded-none rounded-full items-center absolute bottom-0 md:bottom-0 sm:w-full w-[95%] sm:mx-0 absolute mx-auto md:px-0 px-4 py-2"
+                    style="z-index: 1000;">
+                    <div class="lg:flex items-center gap-4 w-full">
+                      <div class="lg:flex hidden w-16 h-16 flex-shrink-0 avatar--shape--1"><!-- Fallback Initial -->
+                        <div data-user-initial=""
+                          class="w-full h-full bg-purple-500 rounded-full flex items-center justify-center text-white text-xl font-bold avatar--shape--1"
+                          style="display: flex;"> UN </div>
+                      </div>
+                      <div class="flex-1">
+                        <div class="lg:flex hidden items-center gap-1"><span
+                            class="text-white text-sm font-medium truncate" data-call-type-text="">[[mode_text]]
+                            [[userName]]</span><svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
+                            class="w-5 h-5 flex-shrink-0">
+                            <path d="M12 16V12M12 8H12.01" stroke="white" stroke-width="2" stroke-linecap="round"
+                              stroke-linejoin="round"></path>
+                            <path
+                              d="M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z"
+                              stroke="white" stroke-width="2"></path>
+                          </svg></div>
+                        <div class="flex xl:flex-row items-center gap-2 h-[30px]"><span
+                            class="lg:flex hidden text-white text-base font-medium" data-meeting-time="">November 5,
+                            2025</span>
+                          <div class=" p-1 font-medium text-gray-700 hidden" style="display: none;">Timer: <span
+                              data-timer="">00:00</span></div>
+                          <div
+                            class="lg:flex hidden items-center gap-1 px-2 justify-center rounded-pill bg-[#5549FF] h-[18px]p"
+                            data-status-indicator="">
+                            <div class="lg:flex hidden w-2 h-2 rounded-full bg-white" data-status-dot=""></div><span
+                              class="text-white text-xs font-medium" data-status-text="">in 5 min</span>
+                          </div><!-- Main control buttons -->
+                          <div
+                            class="main-control-buttons flex items-center md:gap-4 gap-3 md:max-h-[104px] flex-1 md:justify-center lg:relative sm:absolute relative md:bottom-2 left-0 right-0 sm:bottom-[120px] md:mx-0 mx-auto md:w-auto md:w-[calc(100%-424px)] sm:w-full select-none">
+                            <div class="main-control-center-buttons flex justify-center items-center gap-4 flex-1">
+                              <div data-toggle-camera=""
+                                class="h-[68px] w-[68px] rounded-full bg-white/10 flex items-center justify-center cursor-pointer"
+                                aria-label="Toggle camera"><!--v-if--><img
+                                  src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/disableCamera.svg"
+                                  class="w-8 h-8 camera-disabled-icon" alt="Video camera disabled"></div>
+                              <div data-toggle-microphone=""
+                                class="h-[68px] w-[68px] rounded-full bg-white/10 flex items-center justify-center cursor-pointer"
+                                aria-label="Toggle microphone"><!--v-if--><img
+                                  src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/mute-microphone.svg"
+                                  class="w-8 h-8 microphone-disabled-icon" alt="Microphone disabled"></div>
+                            </div>
+                            <div class="main-control-side-buttons flex justify-center items-center gap-4 pl-[168px]">
+                              <div id="chatToggleBtn"
+                                class="h-[68px] w-[68px] rounded-full bg-white/10 flex items-center justify-center cursor-pointer"
+                                aria-label="Toggle chat"><img
+                                  src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/chat-icon.svg"
+                                  class="w-8 h-8" alt="Chat"><img
+                                  src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/message-dots-circle-black.svg"
+                                  class="w-8 h-8 black-chat-icon" alt="Chat"></div>
+                              <div data-toggle-call-settings-panel=""
+                                class="h-[68px] w-[48px] rounded-full bg-white/10 flex items-center justify-center cursor-pointer"
+                                aria-label="Toggle call settings"><img
+                                  src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/three-dots.svg"
+                                  class="w-8 h-8" alt="Call Settings"></div>
+                            </div>
+                          </div><!-- Additional action buttons -->
+                          <div
+                            class="hidden items-center sm:gap-4 gap-4 sm:justify-end justify-center sm:justify-between sm:w-auto w-full">
+                            <div data-toggle-camera-mobile=""
+                              class="xl:w-17 xl:h-17 w-12 h-12 min-w-12 rounded-full bg-[#FFFFFF0D] md:hidden flex items-center justify-center cursor-pointer"
+                              aria-label="Toggle camera"><!--v-if--><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/disableCamera.svg"
+                                class="w-8 h-8 camera-disabled-icon" alt="Video camera disabled"></div>
+                            <div data-toggle-microphone-mobile=""
+                              class="xl:w-17 xl:h-17 md:hidden w-12 h-12 min-w-12 rounded-full bg-[#FFFFFF0D] flex items-center justify-center cursor-pointer"
+                              aria-label="Toggle microphone"><!--v-if--><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/mute-microphone.svg"
+                                class="w-8 h-8 microphone-disabled-icon" alt="Microphone disabled"></div>
+                            <div id="chatToggleBtn"
+                              class="xl:w-17 xl:h-17 md:hidden w-12 h-12 min-w-12 rounded-full bg-[#FFFFFF0D] flex items-center justify-center cursor-pointer"
+                              aria-label="Toggle chat"><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/chat-icon.svg"
+                                class="w-8 h-8" alt="Chat"><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/message-dots-circle-black.svg"
+                                class="w-8 h-8 black-chat-icon" alt="Chat"></div>
+                            <div
+                              class="xl:w-17 xl:h-17 hidden sm-flex w-12 h-12 min-w-12 rounded-full bg-white/5 shadow-control flex items-center justify-center"
+                              aria-label="Earnings"><svg width="38" height="38" viewBox="0 0 38 38" fill="none"
+                                xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 object-cover">
+                                <g filter="url(#filter0_d_5_31388)">
+                                  <path
+                                    d="M21.0396 14.1359C20.2764 14.68 19.3424 15.0001 18.3337 15.0001C15.7563 15.0001 13.667 12.9107 13.667 10.3334C13.667 7.75609 15.7563 5.66675 18.3337 5.66675C20.0043 5.66675 21.4699 6.54464 22.2943 7.86427M11.0003 29.783H14.4807C14.9345 29.783 15.3855 29.837 15.8254 29.9449L19.5028 30.8386C20.3008 31.033 21.132 31.0519 21.9383 30.8953L26.0043 30.1042C27.0784 29.895 28.0664 29.3807 28.8408 28.6274L31.7175 25.829C32.539 25.0312 32.539 23.7367 31.7175 22.9375C30.9779 22.218 29.8066 22.137 28.9698 22.7472L25.6171 25.1932C25.137 25.5442 24.5527 25.7332 23.9519 25.7332H20.7143L22.7751 25.7331C23.9366 25.7331 24.8775 24.8179 24.8775 23.688V23.2789C24.8775 22.3407 24.2211 21.5227 23.2858 21.2959L20.1051 20.5224C19.5875 20.3969 19.0574 20.3334 18.5245 20.3334C17.2381 20.3334 14.9095 21.3985 14.9095 21.3985L11.0003 23.0333M29.667 11.6667C29.667 14.2441 27.5777 16.3334 25.0003 16.3334C22.423 16.3334 20.3337 14.2441 20.3337 11.6667C20.3337 9.08942 22.423 7.00008 25.0003 7.00008C27.5777 7.00008 29.667 9.08942 29.667 11.6667ZM5.66699 22.4667L5.66699 30.2001C5.66699 30.9468 5.66699 31.3202 5.81232 31.6054C5.94015 31.8563 6.14412 32.0603 6.395 32.1881C6.68022 32.3334 7.05359 32.3334 7.80032 32.3334H8.86699C9.61373 32.3334 9.9871 32.3334 10.2723 32.1881C10.5232 32.0603 10.7272 31.8563 10.855 31.6054C11.0003 31.3202 11.0003 30.9468 11.0003 30.2001V22.4667C11.0003 21.72 11.0003 21.3466 10.855 21.0614C10.7272 20.8105 10.5232 20.6066 10.2723 20.4787C9.9871 20.3334 9.61373 20.3334 8.86699 20.3334L7.80033 20.3334C7.05359 20.3334 6.68022 20.3334 6.39501 20.4787C6.14412 20.6066 5.94015 20.8105 5.81232 21.0614C5.66699 21.3466 5.66699 21.72 5.66699 22.4667Z"
+                                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                  </path>
+                                </g>
+                                <defs>
+                                  <filter id="filter0_d_5_31388" x="-0.999756" y="-1" width="40" height="40"
+                                    filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                                    <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+                                    <feColorMatrix in="SourceAlpha" type="matrix"
+                                      values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha">
+                                    </feColorMatrix>
+                                    <feOffset></feOffset>
+                                    <feGaussianBlur stdDeviation="2"></feGaussianBlur>
+                                    <feComposite in2="hardAlpha" operator="out"></feComposite>
+                                    <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0">
+                                    </feColorMatrix>
+                                    <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_5_31388">
+                                    </feBlend>
+                                    <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_5_31388"
+                                      result="shape"></feBlend>
+                                  </filter>
+                                </defs>
+                              </svg></div>
+                            <div
+                              class="xl:w-17 xl:h-17 w-12 h-12 min-w-12 rounded-full bg-white/5 shadow-control lg:flex hidden items-center justify-center"
+                              aria-label="Emoji reactions"><svg width="38" height="38" viewBox="0 0 38 38" fill="none"
+                                xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 object-cover">
+                                <g filter="url(#slackfilter0_d_5_31390)">
+                                  <path
+                                    d="M23.0003 15.0001H23.0137M15.0003 15.0001H15.0137M32.3337 19.0001C32.3337 26.3639 26.3641 32.3334 19.0003 32.3334C11.6365 32.3334 5.66699 26.3639 5.66699 19.0001C5.66699 11.6363 11.6365 5.66675 19.0003 5.66675C26.3641 5.66675 32.3337 11.6363 32.3337 19.0001ZM23.667 15.0001C23.667 15.3683 23.3685 15.6667 23.0003 15.6667C22.6321 15.6667 22.3337 15.3683 22.3337 15.0001C22.3337 14.6319 22.6321 14.3334 23.0003 14.3334C23.3685 14.3334 23.667 14.6319 23.667 15.0001ZM15.667 15.0001C15.667 15.3683 15.3685 15.6667 15.0003 15.6667C14.6321 15.6667 14.3337 15.3683 14.3337 15.0001C14.3337 14.6319 14.6321 14.3334 15.0003 14.3334C15.3685 14.3334 15.667 14.6319 15.667 15.0001ZM19.0003 26.3334C22.3343 26.3334 25.0003 23.8894 25.0003 21.6667H13.0003C13.0003 23.8894 15.6663 26.3334 19.0003 26.3334Z"
+                                    stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                  </path>
+                                </g>
+                                <defs>
+                                  <filter id="filter0_d_5_31390" x="-0.999756" y="-1" width="40" height="40"
+                                    filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+                                    <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+                                    <feColorMatrix in="SourceAlpha" type="matrix"
+                                      values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha">
+                                    </feColorMatrix>
+                                    <feOffset></feOffset>
+                                    <feGaussianBlur stdDeviation="2"></feGaussianBlur>
+                                    <feComposite in2="hardAlpha" operator="out"></feComposite>
+                                    <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0">
+                                    </feColorMatrix>
+                                    <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_5_31390">
+                                    </feBlend>
+                                    <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_5_31390"
+                                      result="shape"></feBlend>
+                                  </filter>
+                                </defs>
+                              </svg></div>
+                            <div
+                              class="xl:w-12 w-9 hidden xl:h-17 hidden lg:flex lg:h-12 h-10 !min-w-5 rounded-full bg-white/5 shadow-control flex items-center justify-center"
+                              aria-label="More options"><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/three-dots.svg">
+                            </div>
+                            <div
+                              class="xl:w-17 xl:h-17 hidden w-12 h-12 min-w-12 rounded-full shadow-control hidden bg-red-500 flex items-center justify-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                stroke="#fff" class="size-6">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z">
+                                </path>
+                              </svg></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+              <!-- Media Cards Panel for Connected State --><!--v-if--><!-- Merch Cards Panel for Connected State --><!--v-if--><!-- Subscription Cards Panel for Connected State --><!--v-if--><!-- Settings Sidebar for Connected State --><!--v-if-->
+              <aside data-sidebar-pannel="" id="chatPanel"
+                class="lg:w-40 h-full sm:h-screen lg:h-full md:h-screen absolute lg:relative overflow-y-auto g-2 bg-black/50 shadow-control w-full backdrop-blur-md flex-col"
+                aria-hidden="true" style="display: none;">
+                <div id="chat-section">
+                  <div class="p-4 flex flex-col gap-4 flex-1">
+                    <div class="flex flex-col gap-4">
+                      <div class="flex flex-col">
+                        <div class="chat-panel-header flex justify-start">
+                          <div class="gap-1 flex items-center">
+                            <div class="h-[20px] w-[20px] p-[0.156rem]"><svg xmlns="http://www.w3.org/2000/svg"
+                                width="18" height="17" viewBox="0 0 18 17" fill="none">
+                                <path
+                                  d="M5.25 8.5H5.25833M9 8.5H9.00833M12.75 8.5H12.7583M9 16C13.1421 16 16.5 12.6421 16.5 8.5C16.5 4.35786 13.1421 1 9 1C4.85786 1 1.5 4.35786 1.5 8.5C1.5 9.49762 1.69478 10.4497 2.04839 11.3204C2.11606 11.4871 2.1499 11.5704 2.165 11.6377C2.17976 11.7036 2.18516 11.7524 2.18517 11.8199C2.18518 11.8889 2.17265 11.9641 2.14759 12.1145L1.65344 15.0794C1.60169 15.3898 1.57582 15.5451 1.62397 15.6573C1.66611 15.7556 1.7444 15.8339 1.84265 15.876C1.95491 15.9242 2.11015 15.8983 2.42063 15.8466L5.38554 15.3524C5.53591 15.3273 5.61109 15.3148 5.68011 15.3148C5.74763 15.3148 5.79638 15.3202 5.86227 15.335C5.92962 15.3501 6.01294 15.3839 6.17958 15.4516C7.05025 15.8052 8.00238 16 9 16ZM5.66667 8.5C5.66667 8.73012 5.48012 8.91667 5.25 8.91667C5.01988 8.91667 4.83333 8.73012 4.83333 8.5C4.83333 8.26988 5.01988 8.08333 5.25 8.08333C5.48012 8.08333 5.66667 8.26988 5.66667 8.5ZM9.41667 8.5C9.41667 8.73012 9.23012 8.91667 9 8.91667C8.76988 8.91667 8.58333 8.73012 8.58333 8.5C8.58333 8.26988 8.76988 8.08333 9 8.08333C9.23012 8.08333 9.41667 8.26988 9.41667 8.5ZM13.1667 8.5C13.1667 8.73012 12.9801 8.91667 12.75 8.91667C12.5199 8.91667 12.3333 8.73012 12.3333 8.5C12.3333 8.26988 12.5199 8.08333 12.75 8.08333C12.9801 8.08333 13.1667 8.26988 13.1667 8.5Z"
+                                  stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                </path>
+                              </svg></div>
+                            <h3 class="text-white font-medium text-[16px]">CHAT</h3>
+                          </div><img
+                            src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/x-close.png"
+                            class="w-6 h-6 object-cover lg:hidden flex">
+                        </div><!-- Chat Messages -->
+                        <div id="chat-messages" class="mt-4 max-h-[83.6vh] overflow-y-auto no-scrollbar"
+                          data-chat-messages-global=""><!-- Receiver Messages (left side, dark background) -->
+                          <div hidden=""
+                            class="bg-[#00000066] rounded-t-[20px] rounded-br-[20px] px-3 py-2 w-max receiver-msg">
+                            <p class="text-white font-normal font-poppins text-base">Let me chat with you</p>
+                          </div>
+                          <div hidden=""
+                            class="mt-1 bg-[#00000066] rounded-t-[20px] rounded-br-[20px] px-3 py-2 w-max receiver-msg">
+                            <p class="text-white font-normal font-poppins text-base">Sorry that day was my birthday so i
+                              can not give to you</p>
+                          </div><!-- Sender Messages (right side, different background) -->
+                          <div hidden=""
+                            class="mt-1 bg-[#6b665d] rounded-t-[20px] rounded-bl-[20px] px-3 py-2 w-max ml-auto sender-msg">
+                            <p class="text-white font-normal font-poppins text-base">Hi</p>
+                          </div>
+                          <div hidden=""
+                            class="mt-1 bg-[#6b665d] rounded-t-[20px] rounded-bl-[20px] px-3 py-2 w-max ml-auto sender-msg">
+                            <p class="text-white font-normal font-poppins text-base">Can you hear me?</p>
+                          </div>
+                          <div hidden=""
+                            class="mt-1 bg-[#6b665d] rounded-t-[20px] rounded-bl-[20px] px-3 py-2 w-max ml-auto sender-msg">
+                            <p class="text-white font-normal font-poppins text-base">Can you hear me?</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div><!-- Chat Setting Section sass -->
+                  <div id="chatSettingSection" class="border-t bottom-0 absolute w-full border-[#FFFFFF40]">
+                    <div class="flex justify-between items-center py-2 w-full h-[64px] text-left px-4"
+                      aria-expanded="false">
+                      <div class="flex items-center gap-2"><input data-chat-input="" type="text"
+                          placeholder="Message..."
+                          class="placeholder:text-white text-white text-base font-normal font-poppins px-4 py-2 w-full bg-transparent outline-none"
+                          data-chat-input-global-text=""></div>
+                      <div class="flex items-center gap-4 flex-none">
+                        <div><button data-chat-send=""
+                            class="bg-[#F06] py-[0.375rem] px-[0.5rem] w-[60px] lg:hidden flex justify-center"><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/send-03.svg"
+                              class="invert"></button></div>
+                        <div><img
+                            src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/gift-02.svg"
+                            id="giftToggleBtn" class="w-[24px] h-[24px] cursor-pointer" aria-label="Open gift menu">
+                        </div>
+                        <div class="relative"><img
+                            src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/smile-emoji.svg"
+                            class="w-[24px] h-[24px] cursor-pointer" id="emojiToggleBtn" aria-label="Open emoji picker">
+                          <div id="emojiPicker"
+                            class="hidden h-[400px] absolute bottom-10 right-0 z-50 w-[300px] overflow-y-auto rounded-lg shadow-lg bg-[#1f1f1f] border border-white/10 p-2">
+                            <div class="grid grid-cols-8 gap-2 text-xl select-none" data-emoji-grid="">
+                              <!-- emojis will be populated by JS --></div>
+                          </div>
+                        </div>
+                        <div>
+                          <div id="plusMenuToggle"
+                            class="bg-brand-primary rounded-full h-[24px] w-[24px] flex items-center justify-center cursor-pointer">
+                            <img class="w-[24px] h-[24px]"
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/plus.svg"
+                              alt=""></div>
+                          <div id="plusMenuPopup"
+                            class="hidden absolute lg:right-2 lg:bottom-[50px] lg:w-[294px] rounded-t-[10px] lg:rounded-none flex flex-col bottom-12 lg:rounded-10 left-0 lg:left-auto bg-[#00000040] w-full overflow-hidden lg:bg-black/80 backdrop-blur-md">
+                            <div id="uploadFileBtn"
+                              class="_flex hidden items-center gap-2 px-4 py-[10px] cursor-pointer"><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/upload-01.svg"
+                                class="object-cover" alt="Plus icon">
+                              <p class="text-brand-primary font-medium text-base"> Upload file </p>
+                            </div>
+                            <div class="flex items-center gap-2 px-4 py-[10px] cursor-pointer"
+                              data-toggle-media-cards-panel="" id="attachMediaBtn"><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/image-plus.svg"
+                                class="object-cover" alt="Plus icon">
+                              <p class="text-white font-medium text-base">Attach media...</p>
+                            </div>
+                            <div class="flex items-center gap-2 px-4 py-[10px]"><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/package-plus.svg"
+                                class="object-cover" alt="Plus icon">
+                              <p class="text-white font-medium text-base"> Attach product... </p>
+                            </div>
+                            <div class="flex items-center gap-2 px-4 py-[10px]"><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/logo_bg.svg"
+                                class="object-cover" alt="Plus icon">
+                              <p class="text-white font-medium text-base"> Attach Subscription plan... </p>
+                            </div>
+                            <div class="flex border-t border-t-[#FFFFFF40] items-center gap-2 px-4 py-[10px]"><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/settings-02.svg"
+                                class="object-cover" alt="Plus icon">
+                              <p class="text-white font-medium text-base">Chat setting</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div><!-- Images Upload Section -->
+                  <div id="imagesUploadSection"
+                    class="p-4 border-t border-[#6b665d] backdrop-blur-md hidden bottom-0 absolute bg-black/50 w-full">
+                    <div class="flex flex-col">
+                      <div class="flex justify-between items-center w-full px-2 py-2">
+                        <p class="font-semibold text-gray-200 text-base">Upload file</p>
+                        <div id="uploadSectionCloseBtn" class="cursor-pointer"><img
+                            src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/x.svg"
+                            alt="Close upload"></div>
+                      </div><input id="imageFileInput" type="file" accept="image/*" multiple="" class="hidden">
+                      <div id="imageDropzone"
+                        class="flex p-6 flex-col items-center bg-black/20 rounded-card cursor-pointer border border-dashed border-white/20">
+                        <div class=""><img class="bg-brand-primary rounded-md p-2 h-10 w-10"
+                            src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/upload-cloud-02.svg"
+                            alt=""></div>
+                        <div class="text-center px-3 py-1">
+                          <div class="text-sm text-white items-center font-semibold justify-center inline">click to
+                            upload</div>
+                          <div class="text-sm items-center justify-center text-gray-300 inline">or drag and drop images
+                            (max 10) </div>
+                        </div>
+                      </div>
+                      <div id="imagePreviewGrid" class="grid grid-cols-3 gap-2 mt-3"></div>
+                      <div class="border-t border-[#FFFFFF40] mt-3">
+                        <div class="flex justify-center items-center py-2 w-full text-left px-2"><button
+                            id="sendImagesBtn"
+                            class="disabled:opacity-50 disabled:cursor-not-allowed mx-auto bg-[#07F468] text-black px-4 py-2 text-base font-medium rounded-full"
+                            disabled="">Send images (0)</button></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </aside><!-- Settings Chat section --><!-- Gift Setion -->
+              <aside data-sidebar-pannel="" id="giftPanel"
+                class="backdrop-blur-[25px] backdrop-blur-lg lg:h-full h-auto lg:relative absolute bottom-0 left-0 w-full lg:w-[400px] bg-black/50 lg:rounded-card shadow-control flex-col justify-center items-center"
+                style="display: none;">
+                <div class="flex flex-col justify-between h-full"><!-- Settings Header & Content -->
+                  <div class="p-4 flex lg:bg-transparent flex-col gap-4 flex-1 w-full">
+                    <div class="flex flex-col gap-4">
+                      <div class="flex flex-col">
+                        <div class="flex items-center justify-between w-full">
+                          <div class="flex items-center gap-1"><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/gift-02-grey.svg"
+                              class="w-[16px] h-[16px] object-cover">
+                            <h3 class="text-gray-400 text-center font-medium text-[12px]"> Send gifts </h3>
+                          </div>
+                          <div class="flex"><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/x-close-grey.svg"
+                              class="w-6 h-6 object-cover cursor-pointer" id="giftCloseBtn"></div>
+                        </div>
+                        <div class="mt-4 grid md:grid-cols-8 lg:grid-cols-3 grid-cols-4 gap-4 lg:gap-2">
+                          <div class="cursor-pointer h-[120px] p-2 flex flex-col justify-center items-center"><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/gift-icon-1.png"
+                              class="w-[76px] h-[76px] object-cover">
+                            <div class="flex items-center mt-2 gap-2"><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/currency-icon.svg"
+                                class="w-5 h-5 object-cover">
+                              <p class="text-white text-sm font-medium">380</p>
+                            </div>
+                          </div>
+                          <div class="cursor-pointer h-[120px] p-2 flex flex-col justify-center items-center"><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/gift-icon-2.png"
+                              class="w-[76px] h-[76px] object-cover">
+                            <div class="flex items-center mt-2 gap-2"><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/currency-icon.svg"
+                                class="w-5 h-5 object-cover">
+                              <p class="text-white text-sm font-medium">380</p>
+                            </div>
+                          </div>
+                          <div class="cursor-pointer h-[120px] p-2 flex flex-col justify-center items-center"><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/gift-icon-3.png"
+                              class="w-[76px] h-[76px] object-cover">
+                            <div class="flex items-center mt-2 gap-2"><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/currency-icon.svg"
+                                class="w-5 h-5 object-cover">
+                              <p class="text-white text-sm font-medium">380</p>
+                            </div>
+                          </div>
+                          <div class="cursor-pointer h-[120px] p-2 flex flex-col justify-center items-center"><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/gift-icon-4.png"
+                              class="w-[76px] h-[76px] object-cover">
+                            <div class="flex items-center mt-2 gap-2"><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/currency-icon.svg"
+                                class="w-5 h-5 object-cover">
+                              <p class="text-white text-sm font-medium">380</p>
+                            </div>
+                          </div>
+                          <div class="cursor-pointer h-[120px] p-2 flex flex-col justify-center items-center"><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/crystal-bear.png"
+                              class="w-[76px] h-[76px] object-cover">
+                            <div class="flex items-center mt-2 gap-2"><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/currency-icon.svg"
+                                class="w-5 h-5 object-cover">
+                              <p class="text-white text-sm font-medium">380</p>
+                            </div>
+                          </div>
+                          <div class="cursor-pointer h-[120px] p-2 flex flex-col justify-center items-center"><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/gift-icon-5.png"
+                              class="w-[76px] h-[76px] object-cover">
+                            <div class="flex items-center mt-2 gap-2"><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/currency-icon.svg"
+                                class="w-5 h-5 object-cover">
+                              <p class="text-white text-sm font-medium">380</p>
+                            </div>
+                          </div>
+                          <div class="cursor-pointer h-[120px] p-2 flex flex-col justify-center items-center"><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/gift-icon-6.png"
+                              class="w-[76px] h-[76px] object-cover">
+                            <div class="flex items-center mt-2 gap-2"><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/currency-icon.svg"
+                                class="w-5 h-5 object-cover">
+                              <p class="text-white text-sm font-medium">380</p>
+                            </div>
+                          </div>
+                          <div class="cursor-pointer h-[120px] p-2 flex flex-col justify-center items-center"><img
+                              src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/gift-icon-7.png"
+                              class="w-[76px] h-[76px] object-cover">
+                            <div class="flex items-center mt-2 gap-2"><img
+                                src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/currency-icon.svg"
+                                class="w-5 h-5 object-cover">
+                              <p class="text-white text-sm font-medium">380</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div><!-- Default Footer: Add Custom Gift (hidden once a gift is selected) -->
+                  <div id="giftFooterDefault" class="px-4 py-2 w-full">
+                    <div class="btn w-full"><button
+                        class="flex px-4 py-[10px] flex justify-center items-center rounded-full w-full bg-brand-primary"><img
+                          src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/plus.svg"
+                          alt="">
+                        <p class="font-semibold text-gray-950 text-base">Add Custom Gift </p>
+                      </button></div>
+                  </div><!-- Wallet Balance Section for sending gift -->
+                  <div id="walletSection"
+                    class="hidden px-4 py-4 bg-[#FF76DD] rounded-b-md h-[144px] overflow-hidden backdrop-blur-lg relative">
+                    <div
+                      class="flex justify-end items-center gap-2 absolute top-0 right-0 w-full h-full blur-sm bg-[#0000004a]">
+                      <img
+                        src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/dog-icon.png"
+                        class="h-[144px] w-[144px] object-cover"></div>
+                    <div class="relative z-[9999999] flex justify-between items-center gap-2">- <p
+                        class="text-white text-base font-normal"> Wallet Balance </p>
+                      <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-[2px] rounded-[6px] px-[4px] bg-gray-950 h-[21px]"><svg
+                            xmlns="http://www.w3.org/2000/svg" width="16" height="17" viewBox="0 0 16 17" fill="none">
+                            <path
+                              d="M8.00033 9.16732C8.36852 9.16732 8.66699 8.86884 8.66699 8.50065C8.66699 8.13246 8.36852 7.83398 8.00033 7.83398C7.63214 7.83398 7.33366 8.13246 7.33366 8.50065C7.33366 8.86884 7.63214 9.16732 8.00033 9.16732Z"
+                              stroke="#FFED29" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round">
+                            </path>
+                            <path
+                              d="M12.667 9.16732C13.0352 9.16732 13.3337 8.86884 13.3337 8.50065C13.3337 8.13246 13.0352 7.83398 12.667 7.83398C12.2988 7.83398 12.0003 8.13246 12.0003 8.50065C12.0003 8.86884 12.2988 9.16732 12.667 9.16732Z"
+                              stroke="#FFED29" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round">
+                            </path>
+                            <path
+                              d="M3.33366 9.16732C3.70185 9.16732 4.00033 8.86884 4.00033 8.50065C4.00033 8.13246 3.70185 7.83398 3.33366 7.83398C2.96547 7.83398 2.66699 8.13246 2.66699 8.50065C2.66699 8.86884 2.96547 9.16732 3.33366 9.16732Z"
+                              stroke="#FFED29" stroke-width="1.33333" stroke-linecap="round" stroke-linejoin="round">
+                            </path>
+                          </svg>
+                          <p
+                            class="text-[#FCE40D] text-xs font-semibold flex items-center justify-center leading-[18px]">
+                            TOP UP NEEDED </p>
+                        </div>
+                        <div class="flex items-center gap-1"><img
+                            src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/currency-icon.svg"
+                            class="w-5 h-5 object-cover relative">
+                          <p class="text-base font-medium text-[#FCE40D]"> 100 </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="relative z-[9999999] flex justify-between items-center gap-2 mt-3">
+                      <p class="text-white text-base font-normal"> Gift price </p>
+                      <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-1">
+                          <div class="text-base font-medium text-white">-</div><img
+                            src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/pngs/currency-icon.svg"
+                            class="w-5 h-5 object-cover relative">
+                          <p class="text-base font-medium text-white"> 280 </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div id="giftConfirmBtn"
+                      class="z-[9999999] relative mt-4 text-gray-950 text-base font-semibold bg-[#FCE40D] rounded-pill px-4 py-[10px] w-full text-center cursor-pointer">
+                      Top up &amp; Send Gift </div>
+                  </div>
+                </div>
+              </aside><!-- Full-screen gift animation overlay -->
+              <div id="giftAnimationOverlay"
+                class="hidden fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center"><img
+                  id="giftAnimationImage" src="" alt="gift" class="w-[240px] h-[240px] animate-gift-twinkle"></div>
+            </div>
+          </div><!-- was v-show="meeting.status==='ended' || meeting.status==='cancelled'" -->
+          <p>Ended/Cancelled <!-- MAP HERE --></p>
+        </main>
+        <footer></footer>
+      </div>
+    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <div data-chime-templates>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      <!-- 📞 CALLER STATES -->
+      <div v-if="state==='caller:startCall'">
+        [Caller] Choose an option to start your call — audio or video.
+      </div>
+
+      <div v-if="state==='caller:callWaiting'">
+        [Caller] Calling… waiting for the other person to answer. Displays user info, call type, and loading indicator.
+      </div>
+
+      <div v-if="state==='caller:callAccepted'">
+        [Caller] The callee has accepted your call! Preparing your audio or video connection.
+      </div>
+
+      <div v-if="state==='caller:waitingForCamMicPermissions'">
+        [Caller] Waiting for camera or microphone permissions… please allow access to continue.
+      </div>
+
+      <div v-if="state==='caller:connectedJoined'">
+        [Caller] Connected and joined - waiting for Callee to join!
+
+    <div ref="callRoot" data-state="in-call" data-call-waiting="true"
+      class="w-full h-screen relative bg-cover bg-center bg-no-repeat bg-black/50 backdrop-blur-sm background-image">
+      <div class="w-full h-full flex">
+        <div class="_w-full flex-1 h-full inset-0 bg-black/50 backdrop-blur-lg lg:p-0 flex items-center gap-2 mx-auto">
+          <section class="flex-1 flex flex-col gap-2 h-full relative">
+            
+            <!-- Main Video Area -->
+            <div class="flex-1 relative rounded-card-xs bg-cover bg-center bg-black backdrop-blur-sm">
+              <!-- Call Waiting --->
+              <call-waiting
+                v-if="isWaiting"
+                user-initials="UN"
+                :waiting-handle="'@' + userName"
+              ></call-waiting>
+              <!-- /Call Waiting --->
+
+              <!-- Main call Video -->
+              <main-call-video v-else></main-call-video>
+              <!-- Main call Video -->
+            </div>
+
+            <!-- Remote Participant Video (bottom Right) -->
+            <remote-participant></remote-participant>
+
+            <!-- Mobile header -->
+            <mobile-header
+              meeting-time="November 5, 2025"
+              user-name="jennyben"
+              mode-text="Meeting with"
+              status-text="in 5 min"
+            ></mobile-header>
+
+            <!-- Bottom Controls -->
+            <bottom-controls user-initials="UN"></bottom-controls>
+          </section>
+        </div>
+      </div>
+    </div>
+
+
+
+
+
+      </div>
+
+      <div v-if="state==='caller:rejected'">
+        [Caller] ❌ You canceled the call.
+      </div>
+
+      <div v-if="state==='caller:declined'">
+        [Caller] 🚫 The other person declined your call.
+      </div>
+
+      <div v-if="state==='caller:terminated'">
+        [Caller] 🔌 The call has ended.
+      </div>
+
+
+      <!-- 🎥 CALLEE STATES -->
+      <div v-if="state==='callee:incomingAudioCall'">
+        [Callee] 📞 Incoming audio call — displaying caller’s name, avatar, and call controls.
+      </div>
+
+      <div v-if="state==='callee:incomingVideoCall'">
+        [Callee] 🎥 Incoming video call — showing caller’s details with options to accept or decline.
+      </div>
+
+      <div v-if="state==='callee:callAccepted'">
+        [Callee] ✅ You accepted the call.
+      </div>
+
+      <div v-if="state==='callee:waitingForCamMicPermissions'">
+        [Callee] Waiting for camera or microphone permissions… please allow access to continue.
+      </div>
+
+
+      <div v-if="state==='callee:connected'">
+        [Callee] 🔗 Connecting to the call…
+    <div data-join1>
+          <div class="w-full h-dvh max-h-dvh xl:h-screen relative bg-cover bg-center bg-no-repeat bg-black/50 backdrop-blur-sm bg-[url(assets/bg-girl-image-call.png)]">
+            <div class="w-full h-dvh lg:h-full max-h-dvh xl:max-h-full inset-0 bg-black/50 backdrop-blur-lg lg:p-2 flex items-center gap-2 mx-auto">
+              <section class="flex-1 flex flex-col gap-2 relative h-dvh lg:h-full max-h-dvh lg:max-h-full">
+                <div class="flex-1 relative rounded-card-xs bg-cover bg-center"><!--   <div data-attribute="tile_feed">
+                          <div data-remotes></div>
+                      </div> -->
+                  <div class="lg:h-full w-full h-screen"><!-- Local Video (if not main) -->
+                    <div class="person" data-local-video-sidebar="" hidden="">
+                      <p><span class="handle">@local</span> — <span class="name">Local User</span></p>
+                      <div class="aspect-[16/9] bg-black absolute w-full h-full object-cover rounded-md"><video autoplay=""
+                          playsinline="" data-local="" style="width: 100%; background: rgb(0, 0, 0);"></video>
+                        <div class="text-[0.75rem] opacity-90 max-w-[32.5rem]" data-status-self=""></div>
+                      </div>
+                    </div><!-- Show self feed here  -->
+                    <video data-cm-video-preview="" class="w-full h-full max-w-full object-cover rounded-[0.25rem] py-2 lg:py-0"
+                      autoplay="" playsinline=""></video>
+                    
+                    <!-- Connecting section -->
+                    <connecting-section :show="substate === 'connecting'"></connecting-section>
+                    <!-- /Connecting section -->
+                  </div>
+                  <!--          <img src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/bg.png" class="absolute w-full h-full object-cover rounded-md"> -->
+                </div>
+                <!-- Mobile header for connecting state -->
+                <prejoin-mobile-header></prejoin-mobile-header>
+                <!-- Spinner overlay --><!-- Spinner overlay --><!--v-if--><!-- Back button -->
+                <!-- Back button -->
+                <back-button :show="substate !== 'connecting'"></back-button>
+                <!-- Bottom controls for connecting state -->
+                <div class="flex flex-col lg:flex-row z-10 gap-2 justify-between left-0 right-0 lg:rounded-none rounded-full items-center lg:relative absolute bottom-4 lg:bottom-0 lg:w-full w-full lg:mx-0 lg:px-0 px-4 py-0">
+                  <user-header class="lg:flex hidden items-center gap-4 w-1/3"></user-header>
+                  <!-- Main control buttons -->
+                  <camera-mic-controls></camera-mic-controls>
+                  <div class="w-1/3"></div>
+                  <!-- Additional action buttons 
+                  -->
+                  <mobile-join-button :substate="substate"></mobile-join-button>
+                  
+                </div>
+              </section><!-- Settings Sidebar for Connecting State -->
+              <settings-panel :substate="substate"></settings-panel>
+            </div>
+          </div>
+        </div>
+        zzzzz
+      </div>
+
+      <div v-if="state==='callee:joined'">
+        [Callee] Joined with the callee.
+      </div>
+
+      <div v-if="state==='callee:rejected'">
+        [Callee] ❌ You rejected the call.
+      </div>
+
+      <div v-if="state==='callee:declined'">
+        [Callee] 🚫 The caller declined your invitation.
+      </div>
+
+      <div v-if="state==='callee:terminated'">
+        [Callee] 🔌 The call has ended.
+      </div>
+
+
+      <!-- 🤝 SHARED STATES (Both) -->
+      <div v-if="state==='shared:networkIssue'">
+        [Both] ⚠️ Network issue detected. Trying to reconnect…
+      </div>
+
+      <div v-if="state==='shared:reconnecting'">
+        [Both] ♻️ Reconnecting to the call… please wait.
+      </div>
+
+      <div v-if="state==='shared:disconnected'">
+        [Both] ⚡ Disconnected from the call. Attempting to restore connection.
+      </div>
+
+      <div v-if="state==='shared:inCall'">
+        [Both] 🎉 Call is active! Both participants are connected.
+
+    
+
+
+
+      </div>
+
+    </div>
+
+  </div><!-- .app --><span>test</span>
+
+
+
+
+
+
+
+
+
+  <div id="call-controls">
+    <h2 style="font-size: 2em">call Controls</h2>
+    <table style="width: 100%; border-collapse: collapse" border="1">
+      <tbody>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Initiate Call</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <button id="btnStartInstantCall" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Start Instant Call
+            </button>
+            <button id="btnStartAudioCall" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              🎤 Start Audio Instant Call
+            </button>
+            <button id="btnStartVideoCall" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              📹 Start Video Instant Call
+            </button>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Respond to Call</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <button id="btnAccept" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Accept
+            </button>
+            <select id="rejectReason">
+              <option value="busy">Busy</option>
+              <option value="not_available">Not available</option>
+              <option value="in_another_call">In another call</option>
+              <option value="spam">Spam</option>
+            </select>
+            <button id="btnReject" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Reject
+            </button>
+            <button id="btnCancelCall" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Cancel
+            </button>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Media Controls</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <a id="link-video-on" href="#" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Video On</a>
+            <a id="link-video-off" href="#" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Video Off</a>
+            <a id="link-audio-on" href="#" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Audio On</a>
+            <a id="link-audio-off" href="#" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Audio Off</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Video Effects</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <label>Blur:</label>
+            <select id="blurLevelSelect">
+              <option value="off">Off</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+            <label>Background:</label>
+            <select id="backgroundSelect">
+              <option value="">None</option>
+              <option value="https://fs.codelinden.com/wp-content/uploads/2024/bg1.jpg">
+                Beach
+              </option>
+              <option value="https://fs.codelinden.com/wp-content/uploads/2024/bg2.jpg">
+                Office
+              </option>
+              <option value="https://fs.codelinden.com/wp-content/uploads/2024/bg3.jpg">
+                Nature
+              </option>
+              <option value="https://fs.codelinden.com/wp-content/uploads/2024/bg4.jpg">
+                City
+              </option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Data Actions</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <a id="link-react" href="#" data-flag="reaction" data-payload='{"emoji":"❤️","intensity":1,"target":"all"}'
+              style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">React</a>
+            <a id="link-send-gift" href="#" data-flag="gift" data-payload='{"giftId":"rose","qty":1,"target":"all"}'
+              style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Send Gift</a>
+            <a id="link-send-chat" href="#" data-flag="chat" data-payload='{"text":"Hi there!","target":"all"}' style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Send Chat</a>
+            <a id="link-send-chat-promo" href="#" data-flag="chatPromo"
+              data-payload='{"promoId":"WELCOME10","target":"all"}' style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Send Promo</a>
+            <a id="link-tip" href="#" data-flag="tip" data-payload='{"amount":10,"currency":"TOK","target":"all"}'
+              style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Tip</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+
+  <div id="debug-container">
+    <h2 style="font-size: 2em">debug Controls</h2>
+    <table style="width: 100%; border-collapse: collapse" border="1">
+      <tbody>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Call Type</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <select id="callType">
+              <option value="INSTANT_ONE_ON_ONE">Instant one on one</option>
+              <option value="SCHEDULED_ONE_ON_ONE">
+                Schedule one on one
+              </option>
+              <option value="GROUP_ONE_ON_ONE">Group one on one</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Role</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <select id="role">
+              <option value="host">Host</option>
+              <option value="collaborator">Collaborator</option>
+              <option value="attendee">Attendee</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>User IDs</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <input id="currentUserId" placeholder="Your ID" autocomplete="off" />
+            <input id="targetUserId" placeholder="Target User ID" autocomplete="off" />
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Socket</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <button id="btnLoginRegister" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Register Logged In (Connect Socket)
+            </button>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Chime Call State</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <div id="ui-status" style="display: inline-block">
+              <strong>Status:</strong> Idle…
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>UI State</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <div style="margin-top: 8px">
+              current → state:
+              <b>{{ state || '(none)' }}</b> /
+              substate: <b>{{ substate || '(none)' }}</b>
+            </div>
+
+            <!-- 🔹 History log -->
+            <div id="ui-history"
+              style="margin-top: 10px; max-height: 180px; overflow-y: auto; font-family: monospace; font-size: 13px;">
+            </div>
+            <div style="margin-top: 8px">
+              current → state:
+              <b>{{ state || '(none)' }}</b> /
+              substate: <b>{{ substate || '(none)' }}</b>
+            </div>
+
+            <!-- 🔹 History log -->
+            <div id="ui-history"
+              style="margin-top: 10px; max-height: 180px; overflow-y: auto; font-family: monospace; font-size: 13px;">
+            </div>
+
+            <script>
+              document.addEventListener("chime-ui::state", (e) => {
+                const d = e.detail;
+                const ts = new Date(d.ts).toLocaleTimeString();
+                console.log("[UI EVENT] chime-ui::state received →", d);
+
+                // update live state display if using Vue/reactivity
+                if (window.vueApp && window.vueApp.state !== undefined) {
+                  window.vueApp.state = d.state;
+                  window.vueApp.substate = d.substate;
+                }
+
+                // append history line
+                const history = document.getElementById("ui-history");
+                if (history) {
+                  const p = document.createElement("p");
+                  p.textContent = `[${ts}] ${d.state} / ${d.substate || 'none'} (caller: ${d.callerId || '-'}, callee: ${d.calleeId || '-'})`;
+                  history.appendChild(p);
+                  // keep scroll pinned to bottom
+                  history.scrollTop = history.scrollHeight;
+                }
+              });
+            </script>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Vue State Shifter</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <label>state:</label>
+            <select id="stateSelect" onchange="CallHandler.dipatchUI(this.value)">
+              <option value="">(none)</option>
+
+              <!-- Caller -->
+              <option value="caller:startCall">caller:startCall</option>
+              <option value="caller:callWaiting">caller:callWaiting</option>
+              <option value="caller:callAccepted">caller:callAccepted</option>
+              <option value="caller:waitingForCamMicPermissions">caller:waitingForCamMicPermissions</option>
+              <option value="caller:connectedJoined">caller:connectedJoined</option>
+              <option value="caller:rejected">caller:rejected</option>
+              <option value="caller:declined">caller:declined</option>
+              <option value="caller:terminated">caller:terminated</option>
+
+              <!-- Callee -->
+              <option value="callee:incomingAudioCall">callee:incomingAudioCall</option>
+              <option value="callee:incomingVideoCall">callee:incomingVideoCall</option>
+              <option value="callee:callAccepted">callee:callAccepted</option>
+              <option value="callee:waitingForCamMicPermissions">callee:waitingForCamMicPermissions</option>
+              <option value="callee:connected">callee:connected</option>
+              <option value="callee:joined">callee:joined</option>
+              <option value="callee:rejected">callee:rejected</option>
+              <option value="callee:declined">callee:declined</option>
+              <option value="callee:terminated">callee:terminated</option>
+
+              <!-- Shared -->
+              <option value="shared:networkIssue">shared:networkIssue</option>
+              <option value="shared:reconnecting">shared:reconnecting</option>
+              <option value="shared:disconnected">shared:disconnected</option>
+              <option value="shared:inCall">shared:inCall</option>
+            </select>
+
+            <label>substate:</label>
+            <select title="Substates for testing to integrate later">
+              <option value="">(none)</option>
+              <option value="test1">test1</option>
+              <option value="test2">test2</option>
+              <option value="test3">test3</option>
+              <option value="test3">test4</option>
+            </select>
+
+            <div><span>State history</span><span id="history"></span></div>
+
+
+
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Camera Status</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong data-cam-mic-element="status-camera">prompt</strong>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Microphone Status</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong data-cam-mic-element="status-microphone">prompt</strong>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Camera Permission Needed</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <div data-cam-mic-element="need-camera" hidden>
+              📷 Camera permission needed
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Microphone Permission Needed</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <div data-cam-mic-element="need-microphone" hidden>
+              🎤 Microphone permission needed
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Cam/Mic Actions</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <button data-cam-mic-action="check-permissions" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Check Permissions
+            </button>
+            <button data-cam-mic-action="request-camera-microphone" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Request Both
+            </button>
+            <button data-cam-mic-action="stop-streams" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Stop Streams
+            </button>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Meeting Actions</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <a id="link-join-meeting" href="#" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Join Meeting</a>
+            <a id="link-start" href="#" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">Start</a>
+            <a id="link-end" href="#" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">End</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>ChimeDebugLog</strong>
+          </td>
+          <td style="
+                  padding: 5px;
+                  border: 1px solid black;
+                  background: #111;
+                  color: #0f0;
+                  font-family: monospace;
+                  font-size: 12px;
+                ">
+            <div id="debug-log-output" style="height: 200px; overflow-y: scroll"></div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="host-controls">
+    <h2 style="font-size: 2em">Host Controls</h2>
+    <table style="width: 100%; border-collapse: collapse" border="1">
+      <tbody>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Bulk Actions</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <button id="btn-mute-all" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Mute All
+            </button>
+            <button id="btn-unmute-all" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Unmute All
+            </button>
+            <button id="btn-end-for-all" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              End Call for All
+            </button>
+            <button id="btn-set-max-attendees" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Set Max Attendees
+            </button>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Assign Host</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <select id="select-host-candidate">
+              <option value="">Select participant…</option>
+            </select>
+            <button id="btn-assign-host" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Assign
+            </button>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Manage Collaborators</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <input id="input-collabs" placeholder="uid1, uid2, uid3, uid4" />
+            <button id="btn-save-collabs" style="
+                    border: 1px solid #ccc;
+                    padding: 2px 6px;
+                    text-decoration: none;
+                    background: #f0f0f0;
+                    color: #333;
+                    margin: 0 5px;
+                  ">
+              Save
+            </button>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 5px; border: 1px solid black">
+            <strong>Meeting Info</strong>
+          </td>
+          <td style="padding: 5px; border: 1px solid black">
+            <span>Meeting: <code id="label-meeting-id">-</code></span> •
+            <span>Type: <code id="label-meeting-type">-</code></span> •
+            <span>Participants:
+              <code id="label-participant-count">0</code>/<code id="label-max-participants">-</code></span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+
+
+
+
+
+  <script>
+    (function bootstrapVue() {
+      function startApp() {
+        const { ref, onMounted, onBeforeUnmount } = Vue;
+
+        const comps = {};
+        if (window.VueComponents?.WaitingConnected) {
+          comps.WaitingConnected = window.VueComponents.WaitingConnected;
+        }
+        if (window.VueComponents?.TemplateCamMicPermissions) {
+          comps.TemplateCamMicPermissions = window.VueComponents.TemplateCamMicPermissions;
+        }
+        // Harwinder registered components
+        if (window.VueComponents?.TemplateCamMicPermissions) {
+          comps.TemplateCamMicPermissions = window.VueComponents.TemplateCamMicPermissions;
+        }
+        if (window.VueComponents?.ConnectingSection) {
+          comps.ConnectingSection = window.VueComponents.ConnectingSection;
+        }
+        if (window.VueComponents?.BackButton) {
+          comps.BackButton = window.VueComponents.BackButton;
+        }
+        if (window.VueComponents?.CameraMicControls) {
+          comps.CameraMicControls = window.VueComponents.CameraMicControls;
+        }
+        if (window.VueComponents?.JoinCallButton) {
+          comps.JoinCallButton = window.VueComponents.JoinCallButton;
+        }
+        if (window.VueComponents?.SettingsPanel) {
+          comps.SettingsPanel = window.VueComponents.SettingsPanel;
+        }
+        if (window.VueComponents?.UserHeader) {
+          comps.UserHeader = window.VueComponents.UserHeader;
+        }
+        if (window.VueComponents?.PrejoinMobileHeader) {
+          comps.PrejoinMobileHeader = window.VueComponents.PrejoinMobileHeader;
+        }
+        if (window.VueComponents?.MobileJoinButton) {
+          comps.MobileJoinButton = window.VueComponents.MobileJoinButton;
+        }
+
+        try {
+          const app = Vue.createApp({
+            components: comps,
+            setup() {
+              const state = ref('');
+              const substate = ref('');
+              const stateSel = ref('');
+              const subSel = ref('');
+
+              // const applyUiState = (st, sub) => {
+              //   alert('state changed: ' + st);
+              //   state.value = st;
+              //   substate.value = sub;
+              //   document.dispatchEvent(
+              //     new CustomEvent('chime-ui::state', {
+              //       detail: { state: st, substate: sub || '', ts: Date.now() },
+              //     }),
+              //   );
+              // };
+
+              // Prosenjit: NEW: refs for the attribute-based visibility
+              const callRoot = ref(null);       // bind this to the element that has data-call-waiting
+              const isWaiting = ref(false);      // true -> show "waiting layout", false -> show "video call"
+              let attrObserver = null;
+
+              const handleUiStateEvent = (e) => {
+                const d = e.detail;
+                if (d && d.state) {
+                  state.value = d.state;
+                  substate.value = d.substate || '';
+                }
+              };
+
+              onMounted(() => {
+                document.addEventListener('chime-ui::state', handleUiStateEvent);
+
+                // Prosenjit: Read initial attribute
+                const el = callRoot.value || document.querySelector('[data-call-waiting]');
+                if (!el) {
+                  console.warn('No element found with data-call-waiting');
+                } else {
+                  isWaiting.value = el.getAttribute('data-call-waiting') === 'true';
+
+                  // Keep in sync with live attribute changes
+                  attrObserver = new MutationObserver((mutations) => {
+                    for (const m of mutations) {
+                      if (m.type === 'attributes' && m.attributeName === 'data-call-waiting') {
+                        isWaiting.value = el.getAttribute('data-call-waiting') === 'true';
+                      }
+                    }
+                  });
+                  attrObserver.observe(el, { attributes: true, attributeFilter: ['data-call-waiting'] });
+                }
+
+                const logUiClick = (action) => {
+                  if (typeof DebugLogger !== 'undefined' && DebugLogger?.addLog) {
+                    DebugLogger.addLog(state.value || 'ready', 'NOTICE', 'UI', `${action} clicked`);
+                  }
+                };
+
+                const buttons = [
+                  { id: 'link-video-on', label: 'Video On' },
+                  { id: 'link-video-off', label: 'Video Off' },
+                  { id: 'link-audio-on', label: 'Audio On' },
+                  { id: 'link-audio-off', label: 'Audio Off' },
+                  { id: 'link-react', label: 'React' },
+                  { id: 'link-send-gift', label: 'Send Gift' },
+                  { id: 'link-send-chat', label: 'Send Chat' },
+                  { id: 'link-send-chat-promo', label: 'Send Promo' },
+                  { id: 'link-tip', label: 'Tip' },
+                  { id: 'link-join-meeting', label: 'Join Meeting' },
+                  { id: 'link-start', label: 'Start' },
+                  { id: 'link-end', label: 'End' },
+                ];
+
+                buttons.forEach(({ id, label }) => {
+                  const el = document.getElementById(id);
+                  if (el) {
+                    el.addEventListener('click', () => logUiClick(label));
+                  }
+                });
+              });
+
+              onBeforeUnmount(() => {
+                document.removeEventListener('chime-ui::state', handleUiStateEvent);
+              });
+
+              return {
+                state,
+                substate,
+                stateSel,
+                subSel,
+                callRoot,   // expose ref
+                isWaiting,  // used by v-if/v-else
+              };
+            },
+          });
+
+          //Prosenjit: Register your two components here
+          if (typeof registerCallWaiting === 'function') registerCallWaiting(app);
+          if (typeof registerMainCallVideo === 'function') registerMainCallVideo(app);
+          if (typeof registerRemoteParticipant === 'function') registerRemoteParticipant(app);
+          if (typeof registerBottomLeftInfo === 'function') registerBottomLeftInfo(app);
+          if (typeof registerBottomCenterControls === 'function') registerBottomCenterControls(app);
+          if (typeof registerBottomRightControls === 'function') registerBottomRightControls(app);
+          if (typeof registerBottomControls === 'function') registerBottomControls(app);
+          if (typeof registerMobileHeader === 'function') registerMobileHeader(app);
+          
+
+          app.mount('#app');
+        } catch (error) {
+          console.error('Error creating Vue app:', error);
+        }
+      }
+
+      function ensureVueReady() {
+        if (!window.Vue || typeof Vue.createApp !== 'function') {
+          console.warn('Vue not ready yet. Retrying...');
+          setTimeout(ensureVueReady, 100);
+          return;
+        }
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', startApp, { once: true });
+        } else {
+          startApp();
+        }
+      }
+
+      ensureVueReady();
+    })();
+  </script>
+
+
+  <div class="container py-4">
+    <h1 class="h4 mb-4">Chime Meeting - Refactored</h1>
+
+    <!-- ============================================
+         VIDEO STAGE (Tailwind Grid Layout)
+         ============================================ -->
+    <div id="video-containers"
+      class="relative overflow-hidden max-w-6xl mx-auto h-[78vh] p-3 bg-white border rounded-xl shadow grid grid-cols-12 grid-rows-2 gap-3">
+      <!-- Host Container -->
+      <div id="host-container" data-name="host" data-container-type="host" data-attendee-id="" data-role="host"
+        class="tile flex items-center justify-center rounded-xl border border-slate-300 bg-slate-900 text-white video-card hidden">
+        <!-- Video element will be added by UiMapTileToCard -->
+      </div>
+
+      <!-- Collaborator 1 Container -->
+      <div id="collab1-container" data-name="collab1" data-container-type="collaborator" data-collab-index="1"
+        data-attendee-id="" data-role="collaborator"
+        class="tile flex items-center justify-center rounded-xl border border-slate-300 bg-slate-900 text-white video-card hidden">
+        <!-- Video element will be added by UiMapTileToCard -->
+      </div>
+
+      <!-- Collaborator 2 Container -->
+      <div id="collab2-container" data-name="collab2" data-container-type="collaborator" data-collab-index="2"
+        data-attendee-id="" data-role="collaborator"
+        class="tile flex items-center justify-center rounded-xl border border-slate-300 bg-slate-900 text-white video-card hidden">
+        <!-- Video element will be added by UiMapTileToCard -->
+      </div>
+
+      <!-- Collaborator 3 Container -->
+      <div id="collab3-container" data-name="collab3" data-container-type="collaborator" data-collab-index="3"
+        data-attendee-id="" data-role="collaborator"
+        class="tile flex items-center justify-center rounded-xl border border-slate-300 bg-slate-900 text-white video-card hidden">
+        <!-- Video element will be added by UiMapTileToCard -->
+      </div>
+
+      <!-- Attendee Container -->
+      <div id="attendee-container" data-name="attendee" data-container-type="attendee" data-attendee-id=""
+        data-role="attendee"
+        class="tile flex items-center justify-center rounded-xl border border-slate-300 bg-slate-900 text-white video-card hidden">
+        <!-- Video element will be added by UiMapTileToCard -->
+      </div>
+    </div>
+
+    <!-- ============================================
+         STATUS DISPLAY (Temporary UI)
+         ============================================ -->
+    <div class="mt-4">
+    </div>
+  </div>
+
+  <style>
+    /* State-based styling for permission status */
+    [data-state="granted"] {
+      background-color: #d1fae5 !important;
+      color: #065f46 !important;
+    }
+
+    [data-state="denied"] {
+      background-color: #fee2e2 !important;
+      color: #991b1b !important;
+    }
+
+    [data-state="prompt"] {
+      background-color: #fef3c7 !important;
+      color: #92400e !important;
+    }
+
+    [data-state="unsupported"],
+    [data-state="error"] {
+      background-color: #f3f4f6 !important;
+      color: #6b7280 !important;
+    }
+
+    /* Show video preview when it has content */
+    video[data-cam-mic-element="video-preview"]:not([src=""]) {
+      display: block !important;
+    }
+
+    /* Role-Based UI System CSS */
+    /* .hidden {
+      display: none !important;
+    } */
+
+    .video-card {
+      transition: all 0.3s ease;
+    }
+
+    .video-card.active {
+      border-color: #0d6efd !important;
+      box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+
+    .video-card video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 0.75rem;
+    }
+
+    /* Ensure tiles fill their grid cells properly */
+    .tile {
+      position: relative;
+      overflow: hidden;
+      min-height: 0;
+      /* Allow grid items to shrink */
+    }
+
+    /* Make video elements fill containers */
+    .tile>video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Grid items should fill their cell */
+    .grid>* {
+      min-height: 0;
+    }
+
+    /* Ensure grid with grid-rows-2 works properly */
+    #video-containers.grid-rows-2>* {
+      min-height: 0;
+    }
+
+    /* Videos should fill the tile container */
+    .tile video {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    /* Testing borders for different roles in Tailwind stage */
+    #host-container {
+      border: 3px solid red !important;
+    }
+
+    #collab1-container,
+    #collab2-container,
+    #collab3-container {
+      border: 3px solid green !important;
+    }
+
+    #attendee-container {
+      border: 3px solid blue !important;
+    }
+
+    /* Full view and mini overlay classes for automatic layouts */
+    .full-view {
+      position: absolute;
+      inset: 0;
+      width: auto;
+      height: auto;
+      border-radius: 0.75rem;
+    }
+
+    .mini-overlay {
+      position: absolute;
+      bottom: 1rem;
+      right: 1rem;
+      width: 16rem;
+      height: 10rem;
+      z-index: 50;
+      border-radius: 0.75rem;
+    }
+  </style>
+
+  <script>
+    /* ======================================================================
+     * EXACT LOGIN FLOW HANDLER (YOUR REQchime-ui:RED ORDER + our CallHandler.init)
+     * ==================================================================== */
+    document.addEventListener("event:user:loggedin", (e) => {
+      const userId = e?.detail?.userId;
+      if (!userId) {
+        console.warn("[SocketHandler] event:user:loggedin missing userId");
+        return;
+      }
+
+      try {
+        SocketHandler.identifyCurrentUser(userId);
+        SocketHandler._initializeSocketConnection();
+        CallHandler.init(); // ← initialize the class IMMEDIATELY after starting socket
+        console.log(
+          `[SocketHandler] Initialized WebSocket for user: ${userId}`
+        );
+      } catch (err) {
+        console.error(
+          "[SocketHandler] Failed to initialize after login:",
+          err
+        );
+      }
+    });
+
+
+
+    // 🔵 EXACT button → dispatch event:user:loggedin (DO NOT CHANGE THIS PATTERN)
+    document
+      .getElementById("btnLoginRegister")
+      .addEventListener("click", () => {
+        const userId = document.getElementById("currentUserId").value.trim();
+        if (!userId) {
+          console.warn("Missing userId");
+          DebugLogger.addLog(
+            "initialize",
+            "CRITICAL",
+            "btnLoginRegister",
+            "Enter your User ID first."
+          );
+          return;
+        }
+        document.dispatchEvent(
+          new CustomEvent("event:user:loggedin", { detail: { userId } })
+        );
+        console.log("[Demo] Dispatched event:user:loggedin for", userId);
+      });
+
+    // Video Effects: Blur Level
+    document.getElementById("blurLevelSelect")?.addEventListener("change", (e) => {
+      const level = e.target.value;
+      console.log("[Demo] Blur level changed to:", level);
+      if (typeof DebugLogger !== "undefined") {
+        DebugLogger.system(`Blur level changed to: ${level}`);
+      }
+      if (typeof coreChime !== "undefined") {
+        coreChime.setVideoBlur(level).catch((err) => {
+          console.error("[Demo] Failed to set blur:", err);
+        });
+      }
+    });
+
+    // Video Effects: Background Image
+    document.getElementById("backgroundSelect")?.addEventListener("change", (e) => {
+      const imageUrl = e.target.value;
+      console.log("[Demo] Background changed to:", imageUrl || "None");
+      if (typeof DebugLogger !== "undefined") {
+        DebugLogger.system(`Background changed to: ${imageUrl || 'none'}`);
+      }
+      if (typeof coreChime !== "undefined") {
+        coreChime.setBackgroundImage(imageUrl || null).catch((err) => {
+          console.error("[Demo] Failed to set background:", err);
+        });
+      }
+    });
+
+    /* =========================================================================
+     * OPTIONAL LOCAL BRIDGE (for demo/testing only — delete if backend fans out)
+     * Translates local call:initiate → socket call:incoming to the callee.
+     * ========================================================================= */
+    // document.addEventListener(CallHandler.FLAGS.CALL_INITIATE, (e) => {
+    //   const d = e && e.detail ? e.detail : undefined;
+    //   console.log("[CallHandler] LOCAL BRIDGE call:initiate", d);
+    //   if (!d) { console.log("[CallHandler] bridge missing detail"); return; }
+    //   if (d.callerId === undefined || d.callerId === "") { console.log("[CallHandler] bridge missing callerId"); return; }
+    //   if (d.calleeId === undefined || d.calleeId === "") { console.log("[CallHandler] bridge missing calleeId"); return; }
+    //   if (d.type === undefined     || d.type === "")     { console.log("[CallHandler] bridge missing type"); return; }
+    //   if (d.role === undefined     || d.role === "")     { console.log("[CallHandler] bridge missing caller role"); return; }
+
+    //   SocketHandler.sendSocketMessage({
+    //     flag: CallHandler.FLAGS.CALL_INCOMING,
+    //     payload: { to: d.calleeId, callType: d.type, callerId: d.callerId, calleeId: d.calleeId, role: d.role },
+    //     schema: CallHandler.SCHEMA.initiate
+    //   });
+    //   console.log("[CallHandler] LOCAL BRIDGE sent CALL_INCOMING to callee");
+    // });
+  </script>
+
+  <script>
+    /* ======================================================================
+     * AUTOMATIC LAYOUT SYSTEM
+     * Applies Tailwind grid layouts based on active participants
+     * ==================================================================== */
+    (function () {
+      const stage = document.getElementById("video-containers");
+      if (!stage) {
+        console.warn("[Layout System] #video-containers not found");
+        return;
+      }
+
+      // Get all tile elements by ID
+      const host = document.getElementById("host-container");
+      const collab1 = document.getElementById("collab1-container");
+      const collab2 = document.getElementById("collab2-container");
+      const collab3 = document.getElementById("collab3-container");
+      const attendee = document.getElementById("attendee-container");
+
+      if (!host || !collab1 || !collab2 || !collab3 || !attendee) {
+        console.warn("[Layout System] Missing tile elements");
+        return;
+      }
+
+      // One source of truth for base classes
+      const BASE_TILE =
+        "tile flex items-center justify-center rounded-xl border border-slate-300 bg-slate-900 text-white video-card";
+
+      const MINI_OVERLAY = "mini-overlay";
+      const FULL_VIEW = "full-view";
+
+      function setBase(el) {
+        if (el) {
+          el.className =
+            BASE_TILE +
+            " " +
+            (el.classList.contains("hidden") ? "hidden" : "");
+        }
+      }
+
+      function hide(el) {
+        if (el) el.className = BASE_TILE + " video-card hidden";
+      }
+
+      function show(el, extra = "") {
+        if (el) {
+          el.className = BASE_TILE + " " + (extra ? extra : "");
+        }
+      }
+
+      const layouts = {
+        // Host main (full view) + Attendee mini overlay
+        host_attendee() {
+          show(host, FULL_VIEW);
+          hide(collab1);
+          hide(collab2);
+          hide(collab3);
+          show(attendee, MINI_OVERLAY);
+          console.log(
+            "[Layout System] Applied: host_attendee (1 host + 1 attendee)"
+          );
+        },
+
+        // Attendee main (full view) + Host mini overlay
+        host_attendee_mainAtt() {
+          show(attendee, FULL_VIEW);
+          show(host, MINI_OVERLAY);
+          hide(collab1);
+          hide(collab2);
+          hide(collab3);
+          console.log(
+            "[Layout System] Applied: host_attendee_mainAtt (attendee main)"
+          );
+        },
+
+        // 2×2 grid: Host + 3 Collaborators
+        host_3collabs() {
+          show(host, "col-span-6 row-span-1 row-start-1 col-start-1");
+          show(collab1, "col-span-6 row-span-1 row-start-1 col-start-7");
+          show(collab2, "col-span-6 row-span-1 row-start-2 col-start-1");
+          show(collab3, "col-span-6 row-span-1 row-start-2 col-start-7");
+          show(attendee, MINI_OVERLAY);
+          console.log("[Layout System] Applied: host_3collabs (2x2 grid)");
+        },
+
+        // Split: Host (left) + 1 Collaborator (right) - both full height
+        host_1collab() {
+          show(host, "col-span-6 row-span-2 row-start-1 col-start-1");
+          show(collab1, "col-span-6 row-span-2 row-start-1 col-start-7");
+          hide(collab2);
+          hide(collab3);
+          show(attendee, MINI_OVERLAY);
+          console.log(
+            "[Layout System] Applied: host_1collab (side-by-side full height)"
+          );
+        },
+
+        // Host centered top + 2 Collaborators side-by-side on bottom + Attendee overlay (all same size)
+        host_2collabs() {
+          show(host, "col-span-6 row-span-1 row-start-1 col-start-4"); // centered at top, same size as collabs
+          show(collab1, "col-span-6 row-span-1 row-start-2 col-start-1"); // bottom left
+          show(collab2, "col-span-6 row-span-1 row-start-2 col-start-7"); // bottom right
+          hide(collab3);
+          show(attendee, MINI_OVERLAY);
+          console.log(
+            "[Layout System] Applied: host_2collabs (host centered top + 2 collabs bottom - all same size + attendee overlay)"
+          );
+        },
+      };
+
+      // Track current layout and re-entrancy protection
+      let currentLayout = null;
+      let isApplyingLayout = false;
+
+      function applyLayout(name) {
+        if (name === undefined || isApplyingLayout) return;
+
+        // Skip if layout hasn't changed
+        if (currentLayout === name) {
+          console.log(`[Layout System] Layout already applied: ${name}`);
+          return;
+        }
+
+        isApplyingLayout = true;
+        console.log(`[Layout System] Applying layout: ${name}`);
+
+        // Disconnect observer temporarily to prevent infinite loop
+        observer.disconnect();
+
+        // Reset all tiles to base state
+        [host, collab1, collab2, collab3, attendee].forEach(setBase);
+
+        // Apply the specified layout
+        if (layouts[name]) {
+          layouts[name]();
+        } else {
+          console.warn(`[Layout System] Unknown layout: ${name}`);
+        }
+
+        stage.setAttribute("data-layout", name);
+        currentLayout = name;
+
+        // Reconnect observer after layout is applied
+        setTimeout(() => {
+          observer.observe(stage, {
+            attributes: true,
+            attributeFilter: ["class"],
+            subtree: true,
+          });
+          isApplyingLayout = false;
+        }, 50);
+      }
+
+      // Automatic layout detection based on active participants
+      function autoDetectAndApplyLayout() {
+        const tiles = [host, collab1, collab2, collab3, attendee];
+        const activeTiles = tiles.filter(
+          (t) => !t.classList.contains("hidden")
+        );
+        const activeCount = activeTiles.length;
+
+        console.log(
+          `[Layout System] Auto-detecting layout for ${activeCount} active participants`
+        );
+
+        // Get active participants by type
+        const hasHost = !host.classList.contains("hidden");
+        const hasAttendee = !attendee.classList.contains("hidden");
+        const activeCollabs = [collab1, collab2, collab3].filter(
+          (c) => !c.classList.contains("hidden")
+        );
+        const collabCount = activeCollabs.length;
+
+        // Determine the best layout based on active participants
+        let targetLayout = "host_attendee";
+
+        console.log(
+          `[Layout Detection] hasHost: ${hasHost}, hasAttendee: ${hasAttendee}, collabCount: ${collabCount}`
+        );
+
+        if (activeCount === 1) {
+          // Single participant
+          if (hasHost) targetLayout = "host_attendee";
+          else targetLayout = "host_attendee_mainAtt";
+        } else if (activeCount === 2) {
+          // Two participants
+          if (hasHost && hasAttendee) {
+            targetLayout = "host_attendee";
+            console.log(
+              `[Layout Detection] 2 participants: Host + Attendee → ${targetLayout}`
+            );
+          } else if (hasHost && collabCount === 1) {
+            targetLayout = "host_1collab";
+            console.log(
+              `[Layout Detection] 2 participants: Host + 1 Collab → ${targetLayout}`
+            );
+          } else {
+            targetLayout = "host_attendee";
+            console.log(
+              `[Layout Detection] 2 participants: Unknown combination → ${targetLayout}`
+            );
+          }
+        } else if (activeCount === 3) {
+          // Three participants
+          if (hasHost && collabCount === 1) {
+            targetLayout = "host_1collab";
+            console.log(
+              `[Layout Detection] 3 participants: Host + 1 Collab + (other) → ${targetLayout}`
+            );
+          } else if (hasHost && collabCount === 2) {
+            targetLayout = "host_2collabs";
+            console.log(
+              `[Layout Detection] 3 participants: Host + 2 Collabs → ${targetLayout}`
+            );
+          } else if (hasHost && hasAttendee) {
+            // Host + Attendee + 1 Collab (no 2 collabs case exists)
+            targetLayout = "host_1collab";
+            console.log(
+              `[Layout Detection] 3 participants: Host + Attendee + 1 Collab → ${targetLayout}`
+            );
+          } else {
+            targetLayout = "host_3collabs";
+            console.log(
+              `[Layout Detection] 3 participants: Unknown → ${targetLayout}`
+            );
+          }
+        } else if (activeCount === 4) {
+          // Four participants: Could be Host + 2 Collabs + Attendee OR Host + 3 Collabs
+          if (hasHost && hasAttendee && collabCount === 2) {
+            // Host + 2 Collabs + Attendee
+            targetLayout = "host_2collabs";
+            console.log(
+              `[Layout Detection] 4 participants: Host + 2 Collabs + Attendee → ${targetLayout}`
+            );
+          } else if (hasHost && collabCount === 3) {
+            // Host + 3 Collabs
+            targetLayout = "host_3collabs";
+            console.log(
+              `[Layout Detection] 4 participants: Host + 3 Collabs → ${targetLayout}`
+            );
+          } else {
+            // Fallback
+            targetLayout = "host_2collabs";
+            console.log(
+              `[Layout Detection] 4 participants: Fallback → ${targetLayout}`
+            );
+          }
+        } else if (activeCount === 5) {
+          // Five participants: Host + 3 Collabs + Attendee
+          targetLayout = "host_3collabs";
+          console.log(
+            `[Layout Detection] 5 participants: Host + 3 Collabs + Attendee → ${targetLayout}`
+          );
+        } else {
+          // Default for any other count
+          console.log(
+            "[Layout Detection] Applying default layout for active count:",
+            activeCount
+          );
+          targetLayout = "host_attendee";
+        }
+
+        // Only apply if layout is different
+        if (targetLayout !== currentLayout) {
+          applyLayout(targetLayout);
+        }
+      }
+
+      // Watch for changes to active participants using MutationObserver
+      const observer = new MutationObserver(() => {
+        // Prevent infinite loops by checking if we're already applying layout
+        if (isApplyingLayout) {
+          return;
+        }
+
+        // Debounce to avoid excessive calls
+        if (window.layoutUpdateTimeout) {
+          clearTimeout(window.layoutUpdateTimeout);
+        }
+        window.layoutUpdateTimeout = setTimeout(() => {
+          autoDetectAndApplyLayout();
+        }, 100);
+      });
+
+      // Observe the stage for class changes on tiles
+      observer.observe(stage, {
+        attributes: true,
+        attributeFilter: ["class"],
+        subtree: true,
+      });
+
+      // Initial layout detection
+      autoDetectAndApplyLayout();
+
+      console.log("[Layout System] ✅ Initialized automatic layout system");
+
+      // Expose layout functions globally for manual testing if needed
+      window.autoLayout = {
+        applyLayout,
+        autoDetectAndApplyLayout,
+        layouts,
+      };
+
+      // Test function to show containers for visual testing
+      window.showTestTiles = function () {
+        console.log(
+          "[Layout System] Showing test tiles for visual inspection..."
+        );
+        host.classList.remove("hidden");
+        collab1.classList.remove("hidden");
+        collab2.classList.remove("hidden");
+        collab3.classList.remove("hidden");
+        attendee.classList.remove("hidden");
+      };
+
+      // Test function to hide all tiles
+      window.hideTestTiles = function () {
+        console.log("[Layout System] Hiding all test tiles...");
+        host.classList.add("hidden");
+        collab1.classList.add("hidden");
+        collab2.classList.add("hidden");
+        collab3.classList.add("hidden");
+        attendee.classList.add("hidden");
+      };
+
+      console.log("[Layout System] 💡 Test functions available:");
+      console.log(
+        "  - showTestTiles() // Show all 5 tiles with colored borders"
+      );
+      console.log("  - hideTestTiles() // Hide all tiles");
+      console.log(
+        "  - autoLayout.applyLayout('layout-name') // Apply specific layout"
+      );
+    })();
+  </script>
+
+
+
+  <!--
+
+CallHandler.dipatchUI("caller:startCall");
+
+
+
+
+    -->
+</body>
+
+</html>

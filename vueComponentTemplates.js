@@ -208,21 +208,21 @@ const MediaCardsPanel = defineComponent({
     };
   },
   template: `
-    <aside data-media-cards-panel class="z-[99999] flex flex-col justify-between lg:w-40 h-screen sm:h-full lg:h-full md:h-[730px] absolute lg:relative overflow-y-auto g-2 lg:rounded-card bg-black/50 shadow-control lg:flex w-full backdrop-blur-md flex-col">
+    <aside data-media-cards-panel class="z-[99999] flex flex-col justify-between lg:w-40 h-screen sm:h-full lg:h-full md:h-[730px] absolute top-0 overflow-y-auto g-2 lg:rounded-card bg-black/50 shadow-control lg:flex w-full backdrop-blur-md flex-col">
       <!-- Card Selection System -->
       <div class="p-4 bg-black/50 rounded-lg flex-1 h-full">
         <div class="flex justify-between">
-          <span @click="setActivePanel('chat');" class="text-white cursor-pointer">
+          <span @click="setActivePanel('chat');" class="text-white cursor-pointer fs-4">
             Cancel
           </span>
-          <h2 class="text-[#EAECF0] font-bold mb-4">Attach media</h2>
+          <span class="text-[#EAECF0] font-bold mb-4 fs-4">Attach media</span>
           <span class="w-[51px]"> </span>
         </div>
 
         <!-- MEDIA — selection cards -->
         <section class="mb-6 h-full overflow-y-auto">
           <div class="flex items-center justify-between mb-2">
-            <h3 class="font-semibold text-white">Media</h3>
+          <!--  <h3 class="font-semibold text-white">Media</h3> -->
             <div class="absolute left-0 bottom-0 p-4 w-full z-10">
               <!-- selected media length-->
               <button @click="pushToChat('media')" class="px-4 py-[10px] bg-[#07F468] text-black text-sm rounded-full w-full">
@@ -235,8 +235,8 @@ const MediaCardsPanel = defineComponent({
             <div v-for="m in media" :key="m.id" @click="toggle('media', m)" class="p-[6px] cursor-pointer"
               :class="isSelected('media', m.id) ? 'border-l-2 border-[#FF0066] bg-gradient-pink' : ''" tabindex="0"
               role="button" :aria-pressed="isSelected('media', m.id)">
-              <div class="card flex flex-col">
-                <div class="w-full relative aspect-179-103 overflow-hidden"
+              <div class="flex flex-col">
+                <div class="w-full relative aspect-[179/103.11] overflow-hidden"
                   :style="{backgroundImage:'url('+m.background_image+')', backgroundSize:'cover', backgroundPosition:'center'}">
                   <div class="absolute bg-black/50 py-[1px] px-1 top-0 left-0">
                     <div class="flex gap-1">

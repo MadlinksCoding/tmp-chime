@@ -186,21 +186,21 @@ const MerchCardsPanel = defineComponent({
     };
   },
   template: `
-    <aside data-media-cards-panel class="z-[99999] flex flex-col justify-between lg:w-40 h-screen sm:h-full lg:h-full md:h-[730px] absolute lg:relative overflow-y-auto g-2 lg:rounded-card bg-black/50 shadow-control lg:flex w-full backdrop-blur-md flex-col">
+    <aside data-media-cards-panel class="z-[99999] flex flex-col justify-between lg:w-40 h-screen sm:h-full lg:h-full md:h-[730px] absolute top-0 overflow-y-auto g-2 lg:rounded-card bg-black/50 shadow-control lg:flex w-full backdrop-blur-md flex-col">
       <!-- Card Selection System -->
       <div class="p-4 bg-black/50 rounded-lg flex-1 h-full">
         <div class="flex justify-between">
-          <span @click="setActivePanel('chat');" class="text-white cursor-pointer">
+          <span @click="setActivePanel('chat');" class="text-white cursor-pointer fs-4">
             Cancel
           </span>
-          <h2 class="text-[#EAECF0] font-bold mb-4">Attach Product</h2>
+          <span class="text-[#EAECF0] font-bold mb-4 fs-4">Attach Product</span>
           <span class="w-[51px]"> </span>
         </div>
 
         <!-- MERCH — selection cards -->
         <section class="mb-6 h-full overflow-y-auto">
           <div class="flex items-center justify-between mb-2">
-            <h3 class="font-semibold text-white">Merch</h3>
+          <!--  <h3 class="font-semibold text-white">Merch</h3> -->
             <div class="absolute left-0 bottom-0 p-4 w-full z-10">
               <!-- selected media length-->
               <button @click="pushToChat('merch')" class="px-4 py-[10px] bg-[#07F468] text-black text-sm rounded-full w-full">
@@ -427,21 +427,21 @@ const SubscriptionCardsPanel = defineComponent({
     };
   },
   template: `
-    <aside data-media-cards-panel class="z-[99999] flex flex-col justify-between lg:w-40 h-screen sm:h-full lg:h-full md:h-[730px] absolute lg:relative overflow-y-auto g-2 lg:rounded-card bg-black/50 shadow-control lg:flex w-full backdrop-blur-md flex-col">
+    <aside data-media-cards-panel class="z-[99999] flex flex-col justify-between lg:w-40 h-screen sm:h-full lg:h-full md:h-[730px] absolute top-0 overflow-y-auto g-2 lg:rounded-card bg-black/50 shadow-control lg:flex w-full backdrop-blur-md flex-col">
       <!-- Card Selection System -->
       <div class="p-4 bg-black/50 rounded-lg flex-1 h-full">
         <div class="flex justify-between">
-          <span @click="setActivePanel('chat');" class="text-white cursor-pointer">
+          <span @click="setActivePanel('chat');" class="text-white cursor-pointer fs-4">
             Cancel
           </span>
-          <h2 class="text-[#EAECF0] font-bold mb-4">Attach Subscription</h2>
+          <span class="text-[#EAECF0] font-bold mb-4 fs-4">Attach Subscription</span>
           <span class="w-[51px]"> </span>
         </div>
 
         <!-- SUBS — selection cards -->
         <section class="mb-6 h-full overflow-y-auto">
           <div class="flex items-center justify-between mb-2">
-            <h3 class="font-semibold text-white">Subscriptions</h3>
+          <!--  <h3 class="font-semibold text-white">Subscriptions</h3> -->
             <div class="absolute left-0 bottom-0 p-4 w-full z-10">
               <!-- selected media length-->
               <button @click="pushToChat('subs')" class="px-4 py-[10px] bg-[#07F468] text-black text-sm rounded-full w-full">

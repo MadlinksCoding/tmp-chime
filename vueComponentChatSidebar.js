@@ -10,15 +10,18 @@ const ChatSidebar = defineComponent({
     MerchCardsPanel: window.VueComponents?.MerchCardsPanel,
     SubscriptionCardsPanel: window.VueComponents?.SubscriptionCardsPanel,
   },
+  props: {
+    toggleChat: { type: Function, required: false },
+  },
   template: `
-    <div class="chat-sidebar-wrapper">
+    <div class="chat-sidebar-wrapper h-full bg-black/10">
       <!-- Chat Panel - Always Visible -->
-      <aside data-sidebar-pannel id="chatPanel" class="lg:w-40 h-full sm:h-screen lg:h-full md:h-screen relative overflow-y-auto g-2 bg-black/50 shadow-control w-full backdrop-blur-md flex flex-col">
+      <aside data-sidebar-pannel id="chatPanel" class="lg:w-40 h-full sm:h-screen lg:h-full md:h-screen relative overflow-y-auto g-2  shadow-control w-full backdrop-blur-md flex flex-col">
         <div id="chat-section">
           <div class="p-4 flex flex-col gap-4 flex-1">
             <div class="flex flex-col gap-4">
               <div class="flex flex-col">
-                <div class="chat-panel-header flex justify-start" >
+                <div class="chat-panel-header flex justify-between" >
                   <div class="gap-1 flex items-center">
                     <div class="h-[20px] w-[20px] p-[0.156rem]">
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="17" viewBox="0 0 18 17" fill="none">
@@ -27,10 +30,10 @@ const ChatSidebar = defineComponent({
                     </div>
                     <h3 class="text-white font-medium text-[16px]">CHAT</h3>
                   </div>
-                  <img @click="setActivePanel(null);" src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/x-close.png" class="w-6 h-6 object-cover lg:hidden flex cursor-pointer">
+                  <img  @click="toggleChat" @click="setActivePanel(null);" src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/x-close.png" class="w-6 h-6 object-cover lg:hidden flex cursor-pointer">
                 </div>
                 <!-- Chat Messages -->
-                <div id="chat-messages" class="mt-4 max-h-[83.6vh] overflow-y-auto no-scrollbar" data-chat-messages-global="">
+                <div id="chat-messages" class="mt-4 max-h-[79.6vh] overflow-y-auto no-scrollbar" data-chat-messages-global="">
                   <!-- Messages will be populated here -->
                 </div>
               </div>
@@ -39,7 +42,7 @@ const ChatSidebar = defineComponent({
           <!-- Chat Setting Section -->
           <div id="chatSettingSection" class=" border-t bottom-0 absolute w-full border-[#FFFFFF40]">
             <div class="flex justify-between items-center py-2 w-full h-[64px] text-left px-4" aria-expanded="false">
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 w-100">
                 <input data-chat-input type="text" placeholder="Message..." class="placeholder:text-white text-white text-base font-normal font-poppins px-4 py-2 w-full bg-transparent outline-none" data-chat-input-global-text="">
               </div>
               <div class="flex items-center gap-4 flex-none"> 
@@ -61,7 +64,7 @@ const ChatSidebar = defineComponent({
                   </div>
                 </div>
                 <div>
-                  <div id="plusMenuToggle" class="bg-brand-primary rounded-full h-[24px] w-[24px] flex items-center justify-center cursor-pointer">
+                  <div id="plusMenuToggle" class="bg-brand-primary rounded-full h-[36px] w-[36px] flex items-center justify-center cursor-pointer">
                     <img class="w-[24px] h-[24px]" src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/plus.svg" alt="">
                   </div>
 
