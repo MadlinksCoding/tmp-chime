@@ -68,7 +68,7 @@ const ChatSidebar = defineComponent({
                     <img class="w-[24px] h-[24px]" src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/plus.svg" alt="">
                   </div>
 
-                  <div id="plusMenuPopup" class="hidden absolute lg:right-2 lg:bottom-[50px] lg:w-[294px] rounded-t-[10px] lg:rounded-none flex flex-col  bottom-12 lg:rounded-10 left-0 lg:left-auto bg-[#00000040] w-full overflow-hidden lg:bg-black/80 backdrop-blur-md">
+                  <div id="plusMenuPopup" class="hidden absolute lg:right-2 lg:bottom-[65px] lg:w-[294px] rounded-t-[10px] lg:rounded-none flex flex-col  bottom-[65px] lg:rounded-10 left-0 lg:left-auto bg-[#00000040] w-full overflow-hidden lg:bg-black/80 backdrop-blur-md">
                     <div @click="setActivePanel('mediaCards')" class="flex items-center gap-2 px-4 py-[10px] cursor-pointer" data-toggle-media-cards-panel id="attachMediaBtn">
                       <img src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/dev/chimenew/assets/svgs/image-plus.svg" class="object-cover" alt="Plus icon">
                       <p class="text-white font-medium text-base">Attach media...</p>

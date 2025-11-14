@@ -483,7 +483,7 @@ function renderMediaCard(item) {
           <div class="absolute top-1 left-1">
             <span class="px-1 py-[1px] flex items-center justify-center gap-[3px] bg-gray-600">
               <span>
-                <img src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/assets/icons/svg/${typeIcon}.svg" alt="" class="w-[1rem] h-[1rem] selected-media-icon">
+                <img src="https://new-stage.fansocial.app/wp-content/plugins/fansocial/assets/icons/svg/${typeIcon}.svg" alt="" class="w-[1rem] h-[1rem] selected-media-icon invert">
               </span>
               ${durationOrCount ? `<span class="text-[11px] text-white">${escapeHtml(durationOrCount)}</span>` : ''}
             </span>

@@ -84,6 +84,7 @@
   <script src="components/callingStep/CallingCard.js"></script>
   <script src="components/callingStep/CallAcceptedCard.js"></script>
   <script src="components/callingStep/CallPermissionCard.js"></script>
+  <script src="components/callingStep/CallRejected.js"></script>
 
 
   <style>
@@ -122,6 +123,12 @@
     .bg-yellow1{
         background: linear-gradient(0deg, rgba(0, 0, 0, 0.10) 0%, rgba(0, 0, 0, 0.10) 100%), linear-gradient(0deg, rgba(255, 205, 41, 0.75) -3.06%, rgba(255, 205, 41, 0.00) 117.35%);
       }
+    #host-container .video-off-indicator{
+      width: 200px !important;
+      height: 200px !important;
+      top: 20% !important;
+      inset: unset !important;
+    }
 
     /* Reaction animations */
     @keyframes reactionFadeInOut {
@@ -190,7 +197,7 @@
       <!-- <chat-sidebar></chat-sidebar> -->
 
       <!-- Center reaction layer for emoji reactions -->
-      <div id="reaction-layer" style="position: fixed; inset: 0; pointer-events: none; z-index: 3000;"></div>
+      <!-- <div id="reaction-layer" style="position: fixed; inset: 0; pointer-events: none; z-index: 3000;"></div> -->
 
       <div
       class="relative w-full h-screen overflow-hidden"
@@ -202,6 +209,7 @@
       }">
       <div class="relative w-full h-screen" data-chime-templates>
         <div data-video-container class="w-full h-full absolute">
+          <div id="reaction-layer" class="absolute w-full h-full inset-0 pointer-events-none z-[3000]"></div>
           <!-- ===============================
           CHIME TILE LAYOUT — INTEGRATED
           =============================== -->
@@ -258,7 +266,7 @@
               indicator.</span>
               <calling-card
                 :show="state === 'caller:callWaiting'"
-                handle-text="@jennyben"
+                handle-text="calling @jennyben"
                 avatar-src="https://i.ibb.co.com/35W4r1KX/Vector-user.webp"
                 @end-call="onEndCall"
                 @toggle-video="onToggleVideo"
@@ -299,16 +307,22 @@
                 :toggle-chat="toggleChat" :chime-call-settings="ChimeCallSettings"></bottom-controls>
           </div>
 
-          <div v-if="state==='caller:rejected'">
-            [Caller] ❌ You canceled the call.
+          <div v-if="state==='caller:rejected'" class="relative w-full h-screen bg-[rgba(12,17,29,0.10)] backdrop-blur-[5px] flex flex-col items-center justify-center">
+            <!-- [Caller] ❌ You canceled the call. -->
+             <span>Rejected</span>
+             <call-rejected></call-rejected>
           </div>
 
-          <div v-if="state==='caller:declined'">
-            [Caller] 🚫 The other person declined your call.
+          <div v-if="state==='caller:declined'" class="relative w-full h-screen bg-[rgba(12,17,29,0.10)] backdrop-blur-[5px] flex flex-col items-center justify-center">
+            <!-- [Caller] 🚫 The other person declined your call. -->
+             <span>Declined</span>
+             <call-rejected></call-rejected>
           </div>
 
-          <div v-if="state==='caller:terminated'">
-            [Caller] 🔌 The call has ended.
+          <div v-if="state==='caller:terminated'" class="relative w-full h-screen bg-[rgba(12,17,29,0.10)] backdrop-blur-[5px] flex flex-col items-center justify-center">
+            <!-- [Caller] 🔌 The call has ended. -->
+             <span>Terminated</span>
+             <call-rejected></call-rejected>
           </div>
 
 
@@ -330,13 +344,19 @@
             />
           </div>
 
-          <div v-if="state==='callee:callAccepted'">
-            [Callee] ✅ You accepted the call.
+          <div v-if="state==='callee:callAccepted'" class="relative w-full h-screen bg-[rgba(12,17,29,0.10)] backdrop-blur-[5px] flex items-center justify-center">
+            <call-accepted-card
+              :show="state === 'callee:callAccepted'"
+              handle-text="@jennyben Accepted!"
+              @end-call="onEndCall"
+              @toggle-video="onToggleVideo"
+              @toggle-mic="onToggleMic"
+            ></call-accepted-card>
           </div>
 
-          <div v-if="state==='callee:waitingForCamMicPermissions'">
+          <!-- <div v-if="state==='callee:waitingForCamMicPermissions'">
             [Callee] Waiting for camera or microphone permissions… please allow access to continue.
-          </div>
+          </div> -->
 
 
           <div v-if="state==='callee:connected'">
@@ -352,7 +372,7 @@
             <!-- [Callee] Joined with the callee. -->
           </div>
 
-          <div v-if="state==='callee:rejected'">
+          <!-- <div v-if="state==='callee:rejected'">
             [Callee] ❌ You rejected the call.
           </div>
 
@@ -362,20 +382,26 @@
 
           <div v-if="state==='callee:terminated'">
             [Callee] 🔌 The call has ended.
-          </div>
+          </div> -->
 
 
           <!-- 🤝 SHARED STATES (Both) -->
           <div v-if="state==='shared:networkIssue'">
-            [Both] ⚠️ Network issue detected. Trying to reconnect…
+            <!-- [Both] ⚠️ Network issue detected. Trying to reconnect… -->
+            <span>Terminated</span>
+            <!-- <call-rejected></call-rejected> -->
           </div>
 
           <div v-if="state==='shared:reconnecting'">
-            [Both] ♻️ Reconnecting to the call… please wait.
+            <!-- [Both] ♻️ Reconnecting to the call… please wait. -->
+            <span>Terminated</span>
+            <!-- <call-rejected></call-rejected> -->
           </div>
 
           <div v-if="state==='shared:disconnected'">
-            [Both] ⚡ Disconnected from the call. Attempting to restore connection.
+            <!-- [Both] ⚡ Disconnected from the call. Attempting to restore connection. -->
+            <span>Terminated</span>
+            <!-- <call-rejected></call-rejected> -->
           </div>
 
           <div class="w-full h-full" v-if="state==='callee:joined' || state==='shared:inCall'">
@@ -1580,7 +1606,13 @@
           if (typeof registerCameraButton === 'function') registerCameraButton(app);
           if (typeof registerMicrophoneButton === 'function') registerMicrophoneButton(app);
 
+            // Calling Flow
 
+          if (typeof registerIncomingCall === 'function') registerIncomingCall(app);
+          if (typeof registerCallingCard === 'function') registerCallingCard(app);
+          if (typeof registerCallAcceptedCard === 'function') registerCallAcceptedCard(app);
+          if (typeof registerCallPermissionCard === 'function') registerCallPermissionCard(app);
+          if (typeof registerCallRejected=== 'function') registerCallRejected(app);
           
 
           // Mount Vue app to #app
@@ -2112,7 +2144,7 @@ CallHandler.dipatchUI("caller:startCall");
       
           // base & helper functions (keeps existing "video-card" or "hidden")
           const BASE_TILE    = "tile flex items-center justify-center rounded-xl border border-slate-300 bg-slate-900 text-white";
-          const MINI_OVERLAY = "absolute bottom-4 right-4 w-[25rem] h-[15rem] z-50 rounded-xl";
+          const MINI_OVERLAY = "absolute bottom-[10rem] right-4 w-[25rem] h-[15rem] z-50 rounded-xl overflow-hidden";
           const FULL_VIEW    = "absolute inset-0 w-auto h-auto rounded-xl";
       
           function setBase(el) {
