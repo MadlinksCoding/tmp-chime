@@ -133,6 +133,38 @@ function initChatHandler(retryCount = 0) {
   console.log('[chatHandler] 📍 chatSendBtn:', chatSendBtn);
   console.log('[chatHandler] 📍 chatMessages:', chatMessages);
 
+  // Message queue for reliable sending (prevents socket breakage from rapid fire)
+  const messageQueue = [];
+  let isSending = false;
+  const MESSAGE_SEND_DELAY = 100; // Minimum delay between messages (ms)
+
+  function processMessageQueue() {
+    if (isSending || messageQueue.length === 0) {
+      return;
+    }
+
+    isSending = true;
+    const messageData = messageQueue.shift();
+    
+    try {
+      // Send via existing chimeHandler
+      if (window.chimeHandler && typeof window.chimeHandler.handleDataSend === 'function') {
+        window.chimeHandler.handleDataSend('chat', messageData.payload);
+        console.log('[chatHandler] ✅ Message sent via chimeHandler:', messageData.payload.message);
+      } else {
+        console.warn('[chatHandler] chimeHandler not available');
+      }
+    } catch (error) {
+      console.error('[chatHandler] ❌ Error sending message:', error);
+    } finally {
+      // Wait before processing next message
+      setTimeout(() => {
+        isSending = false;
+        processMessageQueue();
+      }, MESSAGE_SEND_DELAY);
+    }
+  }
+
   // Send chat message function
   function sendChatMessage() {
     console.log('[chatHandler] 🔔 sendChatMessage() called');
@@ -143,8 +175,6 @@ function initChatHandler(retryCount = 0) {
       return;
     }
 
-    console.log('[chatHandler] ✅ Sending message:', message);
-
     // Create payload for chimeHandler
     const payload = {
       message: message,
@@ -152,19 +182,18 @@ function initChatHandler(retryCount = 0) {
       sender: 'You' // This should come from user data
     };
 
-    // Send via existing chimeHandler
-    if (window.chimeHandler && typeof window.chimeHandler.handleDataSend === 'function') {
-      window.chimeHandler.handleDataSend('chat', payload);
-      console.log('[chatHandler] Message sent via chimeHandler');
-    } else {
-      console.warn('[chatHandler] chimeHandler not available');
-    }
+    // Add to message queue for reliable sending
+    messageQueue.push({ payload, timestamp: Date.now() });
+    console.log('[chatHandler] 📦 Message queued. Queue length:', messageQueue.length);
+
+    // Process queue
+    processMessageQueue();
 
     // Don't store sent messages in global store - they're rendered immediately
     // The message will be stored when received back (if needed) via the global listener
     // This prevents duplicates
     
-    // Add to local chat UI
+    // Add to local chat UI immediately (optimistic update)
     renderChatMessage(message, 'You', true);
 
     // Clear input
@@ -306,9 +335,19 @@ function initEmojiPicker() {
     });
   }
 
+  // Cache emoji picker element for faster access
+  let emojiPickerElement = null;
+  
+  function getEmojiPicker() {
+    if (!emojiPickerElement) {
+      emojiPickerElement = document.getElementById("emojiPicker");
+    }
+    return emojiPickerElement;
+  }
+
   function showEmojiPicker(mode = 'chat') {
     emojiPickerMode = mode;
-    const picker = document.getElementById("emojiPicker");
+    const picker = getEmojiPicker();
     if (picker) {
       picker.classList.remove("hidden");
       populateEmojiGrid();
@@ -316,44 +355,49 @@ function initEmojiPicker() {
   }
 
   function hideEmojiPicker() {
-    const picker = document.getElementById("emojiPicker");
+    const picker = getEmojiPicker();
     if (picker) {
       picker.classList.add("hidden");
     }
     emojiPickerMode = 'chat';
   }
 
-  // Chat emoji button
+  function toggleEmojiPicker(mode = 'chat') {
+    const picker = getEmojiPicker();
+    if (picker) {
+      const isHidden = picker.classList.contains("hidden");
+      if (isHidden) {
+        showEmojiPicker(mode);
+      } else {
+        hideEmojiPicker();
+      }
+    }
+  }
+
+  // Chat emoji button - toggle on click (only affects emojiPicker, not quick-emoji-selector)
   const chatEmojiBtn = document.getElementById("emojiToggleBtn");
   if (chatEmojiBtn) {
     chatEmojiBtn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      showEmojiPicker('chat');
+      toggleEmojiPicker('chat');
     });
   }
 
-  // Listen for reaction button clicks (react-button has aria-label="Toggle emoji")
-  document.addEventListener("click", (e) => {
-    const target = e.target.closest('[aria-label="Toggle emoji"]');
-    if (target && target.id !== 'emojiToggleBtn') {
-      e.preventDefault();
-      e.stopPropagation();
-      showEmojiPicker('reaction');
-    }
-  });
-
   // Close emoji picker when clicking outside
+  // Note: reaction button (aria-label="Toggle reaction") handles its own quick-emoji-selector separately
   document.addEventListener("click", (e) => {
-    const picker = document.getElementById("emojiPicker");
+    const picker = getEmojiPicker();
     const emojiBtn = document.getElementById("emojiToggleBtn");
-    const reactBtn = e.target.closest('[aria-label="Toggle emoji"]');
-    if (picker && !picker.contains(e.target) && !emojiBtn?.contains(e.target) && !reactBtn) {
+    const quickSelector = document.getElementById("quick-emoji-selector");
+    // Don't close if clicking on chat emoji button or inside the picker
+    // Also don't close if clicking on quick-emoji-selector (reaction button's popup)
+    if (picker && !picker.contains(e.target) && !emojiBtn?.contains(e.target) && !quickSelector?.contains(e.target)) {
       hideEmojiPicker();
     }
   });
 
-  console.log('[chatHandler] ✅ Emoji picker initialized (chat & reactions)');
+  console.log('[chatHandler] ✅ Emoji picker initialized (chat only - reaction button uses quick-emoji-selector)');
 }
 
 // Plus Menu Initialization
@@ -366,11 +410,20 @@ function initPlusMenu() {
     return;
   }
 
-  // Toggle plus menu
+  // Toggle plus menu - use explicit check instead of toggle for reliability
   plusToggle.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    plusPopup.classList.toggle("hidden");
+    
+    // Explicitly check if hidden and remove/add accordingly
+    const isHidden = plusPopup.classList.contains("hidden");
+    if (isHidden) {
+      plusPopup.classList.remove("hidden");
+      console.log('[chatHandler] ✅ Plus menu opened');
+    } else {
+      plusPopup.classList.add("hidden");
+      console.log('[chatHandler] ✅ Plus menu closed');
+    }
   });
 
   // Close menu when clicking outside

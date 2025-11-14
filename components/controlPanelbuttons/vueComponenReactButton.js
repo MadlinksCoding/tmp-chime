@@ -9,7 +9,7 @@
       },
       methods: {
         handleClick() {
-          console.log('[react-button] Clicked - showing emoji picker');
+          console.log('[react-button] Clicked - showing quick emoji selector');
 
           const existingPopup = document.getElementById('quick-emoji-selector');
           if (existingPopup) {
@@ -18,16 +18,8 @@
             return;
           }
 
-          // Try to show emoji picker if it exists (handled by chatHandler)
-          const emojiPicker = document.getElementById('emojiPicker');
-          if (emojiPicker && typeof window.showEmojiPicker === 'function') {
-            // If emoji picker exists, show it in reaction mode
-            this.isActive = true;
-            window.showEmojiPicker('reaction');
-          } else {
-            // Fallback: Show quick emoji selector or send default reaction
-            this.showQuickEmojiSelector();
-          }
+          // Show quick emoji selector only
+          this.showQuickEmojiSelector();
         },
         showQuickEmojiSelector() {
           // Quick emoji selector - popular reactions
@@ -58,7 +50,7 @@
           };
 
           const closeOnOutside = (e) => {
-            if (!popup.contains(e.target) && !e.target.closest('[aria-label="Toggle emoji"]')) {
+            if (!popup.contains(e.target) && !e.target.closest('[aria-label="Toggle reaction"]')) {
               dismiss();
             }
           };
@@ -105,7 +97,7 @@
               'h-[68px] w-[68px] rounded-full flex items-center justify-center cursor-pointer transition-colors duration-200',
               isActive ? 'bg-white/75' : 'bg-white/10'
             ]" 
-            aria-label="Toggle emoji"
+            aria-label="Toggle reaction"
             @click="handleClick"
           >
             <img 
