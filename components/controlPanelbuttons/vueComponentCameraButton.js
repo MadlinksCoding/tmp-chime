@@ -22,7 +22,7 @@
           :aria-pressed="enabled"
           :aria-label="ariaLabel"
           :class="[
-            'lg:w-17 lg:h-17 w-12 h-12 min-w-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200',
+            'h-[68px] w-[68px] w-12 h-12 min-w-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200',
             enabled ? 'bg-white/75' : 'bg-white/5'
           ]"
           @click="handleClick"
