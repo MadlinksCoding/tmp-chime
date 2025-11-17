@@ -66,6 +66,6 @@
     }
   
     // Expose global registration method
-    global.registerCallAcceptedCard = register;
+    global.registerCallRejected = register;
   })(window);
   
