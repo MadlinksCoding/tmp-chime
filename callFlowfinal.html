@@ -123,6 +123,12 @@
     .bg-yellow1{
         background: linear-gradient(0deg, rgba(0, 0, 0, 0.10) 0%, rgba(0, 0, 0, 0.10) 100%), linear-gradient(0deg, rgba(255, 205, 41, 0.75) -3.06%, rgba(255, 205, 41, 0.00) 117.35%);
       }
+    #host-container .video-off-indicator{
+      width: 200px !important;
+      height: 200px !important;
+      top: 20% !important;
+      inset: unset !important;
+    }
 
     /* Reaction animations */
     @keyframes reactionFadeInOut {
@@ -192,7 +198,6 @@
 
       <!-- Center reaction layer for emoji reactions -->
       <!-- <div id="reaction-layer" style="position: fixed; inset: 0; pointer-events: none; z-index: 3000;"></div> -->
-      <!-- <div id="reaction-layer" style="position: fixed; inset: 0; pointer-events: none; z-index: 3000;"></div> -->
 
       <div
       class="relative w-full h-screen overflow-hidden"
@@ -204,7 +209,6 @@
       }">
       <div class="relative w-full h-screen" data-chime-templates>
         <div data-video-container class="w-full h-full absolute">
-          <div id="reaction-layer" class="absolute w-full h-full inset-0 pointer-events-none z-[3000]"></div>
           <div id="reaction-layer" class="absolute w-full h-full inset-0 pointer-events-none z-[3000]"></div>
           <!-- ===============================
           CHIME TILE LAYOUT — INTEGRATED
@@ -340,15 +344,6 @@
             />
           </div>
 
-          <div v-if="state==='callee:callAccepted'" class="relative w-full h-screen bg-[rgba(12,17,29,0.10)] backdrop-blur-[5px] flex items-center justify-center">
-            <call-accepted-card
-              :show="state === 'callee:callAccepted'"
-              handle-text="@jennyben Accepted!"
-              @end-call="onEndCall"
-              @toggle-video="onToggleVideo"
-              @toggle-mic="onToggleMic"
-            ></call-accepted-card>
-          </div>
           <div v-if="state==='callee:callAccepted'" class="relative w-full h-screen bg-[rgba(12,17,29,0.10)] backdrop-blur-[5px] flex items-center justify-center">
             <call-accepted-card
               :show="state === 'callee:callAccepted'"
