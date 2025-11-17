@@ -35,7 +35,7 @@
           const popup = document.createElement('div');
           popup.id = 'quick-emoji-selector';
           popup.className = [
-            'fixed z-[10000] shadow-2xl flex items-center gap-4 backdrop-blur px-4 py-3 transition-all duration-200',
+            'absolute z-[10000] shadow-2xl flex items-center gap-4 backdrop-blur px-4 py-3 transition-all duration-200',
             'bg-black/60 rounded-[16px]',
             'bottom-[100px]',
             'left-1/2 right-auto -translate-x-1/2',
