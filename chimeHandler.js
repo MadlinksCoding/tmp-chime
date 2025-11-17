@@ -2111,7 +2111,7 @@ class chimeHandler {
       color: #fff !important;
       font-size: 18px !important;
       font-weight: bold !important;
-      z-index: 999 !important;
+      z-index: 0 !important;
       border-radius: 8px !important;
       transition: none !important;
       animation: none !important;
@@ -2133,12 +2133,24 @@ class chimeHandler {
     const initials = displayName.substring(0, 2).toUpperCase();
 
     indicator.innerHTML = `
-      <div style="width: 80px; height: 80px; border-radius: 50%; background: #4a5568; display: flex; align-items: center; justify-content: center; font-size: 32px; margin-bottom: 12px;">
-        ${initials}
+      <div class="flex w-16 h-16 flex-shrink-0 rounded-blob-1 aspect-square relative overflow-hidden w-9 h-9">
+        <!-- INITIALS fallback -->
+        <div 
+          class="w-full h-full bg-purple-500 rounded-full flex items-center justify-center 
+                text-white text-xl font-bold rounded-blob-1 aspect-square relative overflow-hidden w-9 h-9"
+          data-user-initial
+        >
+          ${initials}
+        </div>
+
+        <!-- USER IMAGE (conditionally shown by JS) -->
+        <img 
+          src="${userData?.profileImage || ''}" 
+          alt="${displayName}"
+          class="w-full h-full object-cover absolute top-0 left-0 hidden"
+          data-user-avatar
+        >
       </div>
-      <div style="font-size: 16px; margin-bottom: 8px;">${displayName}</div>
-      <div class="video-off-message" style="font-size: 14px; color: #cbd5e0;">📹 VIDEO OFF</div>
-      <div class="grace-period-message" style="font-size: 14px; color: #f39c12; font-weight: bold; margin-top: 8px; display: none;">⏸️ GRACE PERIOD</div>
     `;
 
     container.appendChild(indicator);
@@ -2304,7 +2316,7 @@ class chimeHandler {
           // VIDEO OFF - SHOW indicator IMMEDIATELY
           indicator.style.setProperty('display', 'flex', 'important');
           indicator.style.setProperty('visibility', 'visible', 'important');
-          indicator.style.setProperty('z-index', '999', 'important');
+          indicator.style.setProperty('z-index', '0', 'important');
           console.log(`[_updateVideoOffIndicator] ✅ SHOWING indicator (was: ${oldDisplay}, now: flex)`);
           
           if (typeof DebugLogger !== "undefined") {
